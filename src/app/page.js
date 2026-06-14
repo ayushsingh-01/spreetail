@@ -295,12 +295,6 @@ export default function Home() {
         anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Payer name normalized from "${row.paidByRaw}" to "${payerName}".`);
       }
 
-      const payerUser = getUserObjByName(payerName);
-      if (!payerUser) {
-        alert(`Row ${row.rowNum}: Invalid payer selected.`);
-        return;
-      }
-
       // Currency and Converted Amount
       let currency = row.currency;
       let amount = row.amount;
@@ -331,17 +325,10 @@ export default function Home() {
                            row.anomalies.some(a => a.type === 'SETTLEMENT_LOGGED_AS_EXPENSE');
       
       if (isSettlement) {
-        // Find payee
         const payeeName = row.splitWithNormalized[0];
-        const payeeUser = getUserObjByName(payeeName);
-        if (!payeeUser) {
-          alert(`Row ${row.rowNum} (Settlement): Payee "${payeeName}" not found.`);
-          return;
-        }
-
         resolvedSettlements.push({
-          payer_id: payerUser.id,
-          payee_id: payeeUser.id,
+          payer_name: payerName,
+          payee_name: payeeName,
           amount,
           currency,
           converted_amount_inr: convertedAmount,
@@ -377,10 +364,8 @@ export default function Home() {
           if (!finalSplitWith.includes('Dev')) {
             finalSplitWith.push('Dev');
           }
-          // The splits allocation below will assign Dev 2 shares or Kabir's amount.
           anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Reassigned Kabir's split share directly to Dev.`);
         } else {
-          // Add Kabir. Ensure Kabir is in finalSplitWith
           finalSplitWith = finalSplitWith.map(name => {
             if (name === "Dev's friend Kabir") return 'Kabir';
             return name;
@@ -400,20 +385,16 @@ export default function Home() {
         // Adjust for rounding differences (assign small remaining diff to payer)
         let sumCalculated = 0;
         finalSplitWith.forEach((name, idx) => {
-          const userObj = getUserObjByName(name);
-          if (userObj) {
-            let userShare = splitShare;
-            if (idx === count - 1) {
-              userShare = Math.round((convertedAmount - sumCalculated) * 100) / 100;
-            }
-            sumCalculated += userShare;
-            splits.push({
-              user_id: userObj.id,
-              user_name: name,
-              raw_split_value: 1, // equal share weight
-              calculated_amount_inr: userShare
-            });
+          let userShare = splitShare;
+          if (idx === count - 1) {
+            userShare = Math.round((convertedAmount - sumCalculated) * 100) / 100;
           }
+          sumCalculated += userShare;
+          splits.push({
+            user_name: name,
+            raw_split_value: 1, // equal share weight
+            calculated_amount_inr: userShare
+          });
         });
       } 
       else if (splitType === 'unequal') {
@@ -433,17 +414,13 @@ export default function Home() {
         let conversionMultiplier = currency === 'USD' ? usdRate : 1.0;
 
         finalSplitWith.forEach(name => {
-          const userObj = getUserObjByName(name);
-          if (userObj) {
-            const rawValue = userMapDetails[name] || 0;
-            const calculatedAmount = Math.round(rawValue * conversionMultiplier * 100) / 100;
-            splits.push({
-              user_id: userObj.id,
-              user_name: name,
-              raw_split_value: rawValue,
-              calculated_amount_inr: calculatedAmount
-            });
-          }
+          const rawValue = userMapDetails[name] || 0;
+          const calculatedAmount = Math.round(rawValue * conversionMultiplier * 100) / 100;
+          splits.push({
+            user_name: name,
+            raw_split_value: rawValue,
+            calculated_amount_inr: calculatedAmount
+          });
         });
       } 
       else if (splitType === 'percentage') {
@@ -466,23 +443,19 @@ export default function Home() {
         const shouldNormalize = rowRes.percentageDecision === 'normalize' || Math.abs(totalPct - 100) > 0.01;
 
         finalSplitWith.forEach((name, idx) => {
-          const userObj = getUserObjByName(name);
-          if (userObj) {
-            let rawVal = userMapPct[name] || 0;
-            let finalPct = rawVal;
-            
-            if (shouldNormalize && totalPct > 0) {
-              finalPct = (rawVal / totalPct) * 100;
-            }
-
-            const calculatedAmount = Math.round((convertedAmount * (finalPct / 100)) * 100) / 100;
-            splits.push({
-              user_id: userObj.id,
-              user_name: name,
-              raw_split_value: rawVal,
-              calculated_amount_inr: calculatedAmount
-            });
+          let rawVal = userMapPct[name] || 0;
+          let finalPct = rawVal;
+          
+          if (shouldNormalize && totalPct > 0) {
+            finalPct = (rawVal / totalPct) * 100;
           }
+
+          const calculatedAmount = Math.round((convertedAmount * (finalPct / 100)) * 100) / 100;
+          splits.push({
+            user_name: name,
+            raw_split_value: rawVal,
+            calculated_amount_inr: calculatedAmount
+          });
         });
 
         if (shouldNormalize) {
@@ -518,17 +491,13 @@ export default function Home() {
         });
 
         finalSplitWith.forEach(name => {
-          const userObj = getUserObjByName(name);
-          if (userObj) {
-            const userShare = userMapShares[name] || 0;
-            const calculatedAmount = Math.round((convertedAmount * (userShare / totalShares)) * 100) / 100;
-            splits.push({
-              user_id: userObj.id,
-              user_name: name,
-              raw_split_value: userShare,
-              calculated_amount_inr: calculatedAmount
-            });
-          }
+          const userShare = userMapShares[name] || 0;
+          const calculatedAmount = Math.round((convertedAmount * (userShare / totalShares)) * 100) / 100;
+          splits.push({
+            user_name: name,
+            raw_split_value: userShare,
+            calculated_amount_inr: calculatedAmount
+          });
         });
         anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Custom share split computed (Total shares: ${totalShares}).`);
       }
@@ -538,7 +507,7 @@ export default function Home() {
         amount: row.amount,
         currency: row.currency,
         converted_amount_inr: convertedAmount,
-        paid_by_user_id: payerUser.id,
+        paid_by_name: payerName,
         split_type: splitType,
         expense_date: finalDate,
         notes: row.notes,

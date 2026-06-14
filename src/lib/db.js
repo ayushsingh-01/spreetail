@@ -84,7 +84,7 @@ export function getDb() {
   const count = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
   if (count === 0) {
     const insertUser = db.prepare('INSERT INTO users (name, email) VALUES (?, ?)');
-    const defaultUsers = ['Aisha', 'Rohan', 'Priya', 'Meera', 'Sam', 'Dev', 'Kabir'];
+    const defaultUsers = ['Aisha', 'Rohan', 'Priya', 'Meera'];
     for (const name of defaultUsers) {
       insertUser.run(name, `${name.toLowerCase()}@example.com`);
     }
@@ -108,21 +108,16 @@ export function getDb() {
     // Flatmates memberships:
     // Aisha, Rohan, Priya: Feb 1, 2026 onwards
     // Meera: Feb 1, 2026 to Mar 31, 2026
-    // Sam: Apr 8, 2026 onwards
     insertMembership.run(flatGroupId, userMap['Aisha'], '2026-02-01', null);
     insertMembership.run(flatGroupId, userMap['Rohan'], '2026-02-01', null);
     insertMembership.run(flatGroupId, userMap['Priya'], '2026-02-01', null);
     insertMembership.run(flatGroupId, userMap['Meera'], '2026-02-01', '2026-03-31');
-    insertMembership.run(flatGroupId, userMap['Sam'], '2026-04-08', null);
 
     // Goa Trip memberships:
-    // Aisha, Rohan, Priya, Dev: March 8, 2026 to March 14, 2026
-    // Kabir: March 11, 2026 to March 11, 2026 (Dev's friend)
+    // Aisha, Rohan, Priya: March 8, 2026 onwards
     insertMembership.run(goaGroupId, userMap['Aisha'], '2026-03-08', '2026-03-14');
     insertMembership.run(goaGroupId, userMap['Rohan'], '2026-03-08', '2026-03-14');
     insertMembership.run(goaGroupId, userMap['Priya'], '2026-03-08', '2026-03-14');
-    insertMembership.run(goaGroupId, userMap['Dev'], '2026-03-08', '2026-03-14');
-    insertMembership.run(goaGroupId, userMap['Kabir'], '2026-03-11', '2026-03-11');
   }
 
   dbInstance = db;
