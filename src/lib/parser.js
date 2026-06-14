@@ -185,14 +185,16 @@ export function classifyGroup(record, parsedDate) {
   const hasGoaMembers = splitWith.includes('dev') || splitWith.includes('kabir');
 
   let isGoaDate = false;
+  let isGoaTimelineMonth = false;
   if (parsedDate) {
     const date = new Date(parsedDate);
     const goaStart = new Date('2026-03-08');
     const goaEnd = new Date('2026-03-14');
     isGoaDate = date >= goaStart && date <= goaEnd;
+    isGoaTimelineMonth = date.getFullYear() === 2026 && date.getMonth() === 2; // March is month 2 (0-indexed)
   }
 
-  if (hasGoaKeyword || hasGoaMembers || isGoaDate) {
+  if (hasGoaKeyword || isGoaDate || (hasGoaMembers && isGoaTimelineMonth)) {
     return 'Goa Trip 2026';
   }
   return 'Flatmates 4B';
