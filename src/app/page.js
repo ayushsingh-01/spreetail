@@ -180,7 +180,7 @@ export default function Home() {
           
           row.anomalies.forEach(anom => {
             if (anom.type === 'DATE_AMBIGUOUS') {
-              rowRes.dateDecision = '05-04-2026'; // Default to April 5th as per note
+              rowRes.dateDecision = 'DD-MM-YYYY'; // Default to DD-MM-YYYY format
             }
             if (anom.type === 'PAYER_MISSING') {
               rowRes.payerDecision = ''; // User must select
@@ -279,13 +279,14 @@ export default function Home() {
       // Date Resolution
       let finalDate = row.date;
       if (row.anomalies.some(a => a.type === 'DATE_AMBIGUOUS')) {
-        const decision = rowRes.dateDecision; // '04-05-2026' (May 4) or '05-04-2026' (April 5)
-        if (decision === '04-05-2026') {
-          finalDate = '2026-05-04';
-          anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Ambiguous date resolved to May 4th.`);
+        const decision = rowRes.dateDecision; // 'DD-MM-YYYY' or 'MM-DD-YYYY'
+        if (decision === 'MM-DD-YYYY') {
+          const [yyyy, mm, dd] = row.date.split('-');
+          finalDate = `${yyyy}-${dd}-${mm}`;
+          anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Ambiguous date resolved to MM-DD-YYYY (${finalDate}).`);
         } else {
-          finalDate = '2026-04-05';
-          anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Ambiguous date resolved to April 5th.`);
+          finalDate = row.date;
+          anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Ambiguous date resolved to default DD-MM-YYYY (${finalDate}).`);
         }
       } else if (row.anomalies.some(a => a.type === 'DATE_FORMAT_INCONSISTENT')) {
         anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Date format cleaned from "${row.dateRaw}" to "${row.date}".`);
@@ -841,6 +842,13 @@ export default function Home() {
   const myDebts = payments.filter(p => p.from === loggedInUser?.name);
   const myCredits = payments.filter(p => p.to === loggedInUser?.name);
 
+  const formatDatePretty = (isoStr) => {
+    if (!isoStr) return '';
+    const [y, m, d] = isoStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
   return (
     <div className="container">
       {/* Header */}
@@ -1341,28 +1349,32 @@ export default function Home() {
                                                     </div>
                                                   )}
 
-                                                  {anom.type === 'DATE_AMBIGUOUS' && (
-                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`date-choice-${row.rowNum}`}
-                                                          checked={resolutions[row.rowNum]?.dateDecision === '05-04-2026'}
-                                                          onChange={() => updateResolution(row.rowNum, 'dateDecision', '05-04-2026')}
-                                                        />
-                                                        <span>April 5, 2026 (DD-MM-YYYY)</span>
-                                                      </label>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`date-choice-${row.rowNum}`}
-                                                          checked={resolutions[row.rowNum]?.dateDecision === '04-05-2026'}
-                                                          onChange={() => updateResolution(row.rowNum, 'dateDecision', '04-05-2026')}
-                                                        />
-                                                        <span>May 4, 2026 (MM-DD-YYYY)</span>
-                                                      </label>
-                                                    </div>
-                                                  )}
+                                                  {anom.type === 'DATE_AMBIGUOUS' && (() => {
+                                                    const [yyyy, mm, dd] = row.date.split('-');
+                                                    const altDate = `${yyyy}-${dd}-${mm}`;
+                                                    return (
+                                                      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                          <input 
+                                                            type="radio" 
+                                                            name={`date-choice-${row.rowNum}`}
+                                                            checked={resolutions[row.rowNum]?.dateDecision === 'DD-MM-YYYY'}
+                                                            onChange={() => updateResolution(row.rowNum, 'dateDecision', 'DD-MM-YYYY')}
+                                                          />
+                                                          <span>{formatDatePretty(row.date)} (DD-MM-YYYY)</span>
+                                                        </label>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                          <input 
+                                                            type="radio" 
+                                                            name={`date-choice-${row.rowNum}`}
+                                                            checked={resolutions[row.rowNum]?.dateDecision === 'MM-DD-YYYY'}
+                                                            onChange={() => updateResolution(row.rowNum, 'dateDecision', 'MM-DD-YYYY')}
+                                                          />
+                                                          <span>{formatDatePretty(altDate)} (MM-DD-YYYY)</span>
+                                                        </label>
+                                                      </div>
+                                                    );
+                                                  })()}
 
                                                   {anom.type === 'PERCENTAGE_SUM_ERROR' && (
                                                     <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
