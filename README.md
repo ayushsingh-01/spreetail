@@ -60,3 +60,18 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
     *   **External Member:** Assign Kabir's parasailing cost to Dev or add him as a member.
 4.  Click **Apply Resolutions & Import** to write atomically to the SQLite database.
 5.  Go to the **Dashboard** or **Audit Ledger** tabs to verify balances.
+
+---
+
+## Deployment Guidelines (SQLite Persistence)
+
+This application uses a local SQLite database (`database.sqlite`). When deploying, please take note of the following rules regarding local database persistence:
+
+### 1. Serverless Platforms (e.g., Vercel, Netlify)
+*   **Avoid standard SQLite on Vercel:** Vercel serverless functions are read-only and stateless. Any writes to `database.sqlite` will either throw write-permission errors or be reset when container instances recycle.
+*   **Vercel Migration:** To deploy on Vercel, swap out the SQLite client in `src/lib/db.js` with a hosted serverless database like **Turso** (stateless/hosted SQLite) or a cloud database like Neon (PostgreSQL).
+
+### 2. Persistent Container Hosting (e.g., Render, Railway, DigitalOcean, Fly.io)
+*   **Recommended Strategy:** Deploy the Next.js application as a standard Node.js container or service (running `npm start` after `npm run build`), and attach a **Persistent Disk/Volume** (e.g., 1GB).
+*   **Volume Mount Path:** Mount the volume path (e.g., `/data`) and point the database path in `src/lib/db.js` to `/data/database.sqlite` to ensure all flatmate transactions and anomaly logs are safely stored across restarts and builds.
+

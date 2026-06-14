@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-let dbInstance = null;
+// Singleton pattern to prevent multiple open connections during Next.js hot-reloading in development
+let dbInstance = global.dbInstance || null;
 
 export function getDb() {
   if (dbInstance) return dbInstance;
@@ -121,6 +122,9 @@ export function getDb() {
   }
 
   dbInstance = db;
+  if (process.env.NODE_ENV !== 'production') {
+    global.dbInstance = dbInstance;
+  }
   return dbInstance;
 }
 
@@ -137,5 +141,6 @@ export function resetDatabase() {
     DROP TABLE IF EXISTS users;
   `);
   dbInstance = null;
+  global.dbInstance = null;
   return getDb();
 }
