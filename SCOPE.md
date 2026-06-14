@@ -71,10 +71,10 @@ Our parser detects, surfaces, and resolves the following deliberate data problem
 *   **Policy:** Flagged as an ambiguous date. The UI displays a radio button letting the user resolve it to April 5th (standard DD-MM-YYYY) or May 4th.
 
 ### 16. Out-of-Bounds Group Membership
-*   **Problem:** Row 36 (`Groceries BigBasket`) occurs on `2026-04-02` and splits with Meera. However, Meera moved out on March 31.
-*   **Policy:** Flagged as a high-severity membership violation. The UI prompts the user to:
-    *   **Option A (Default):** Exclude Meera from this specific split and distribute her share among the active members.
-    *   **Option B:** Keep her in the split anyway (forcing her to pay for it).
+*   **Problem:** Row 36 (`Groceries BigBasket`) occurs on `2026-04-02` and splits with Meera (who moved out March 31st). Row 5 (`Dinner at Marina Bites`) occurs on `2026-02-08` and splits with Dev (who isn't a permanent resident of Flatmates 4B).
+*   **Policy:** Flagged as a high-severity membership violation. The UI prompts the user to choose whether to remove or keep them in the split. The system intelligently defaults this resolution based on context:
+    *   **Visiting Guests / Payers:** If the out-of-bounds user is the payer of the transaction or has a notes tag indicating they are "visiting" (e.g. Dev in Row 5), the wizard defaults to **Keep Dev in split**.
+    *   **Post-Move-Out Members:** If the member has left the group and is not visiting (e.g. Meera in Row 36), the wizard defaults to **Remove Meera from split**.
 
 ---
 
