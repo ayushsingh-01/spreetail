@@ -2,6 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+const USER_ALIASES = {
+  'aisha': 'Aisha',
+  'rohan': 'Rohan',
+  'rohan ': 'Rohan',
+  'priya': 'Priya',
+  'priya s': 'Priya',
+  'meera': 'Meera',
+  'sam': 'Sam',
+  'dev': 'Dev',
+  'kabir': 'Kabir',
+  "dev's friend kabir": 'Kabir'
+};
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [groups, setGroups] = useState([]);
