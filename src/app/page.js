@@ -83,6 +83,23 @@ export default function Home() {
     }
   };
 
+  const handleResetDatabase = async () => {
+    if (!confirm('Are you sure you want to clear all data and reset the database? This will delete all imported and custom expenses.')) return;
+    try {
+      const res = await fetch('/api/reset', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert('Database successfully reset and re-seeded!');
+        await loadInitialData();
+        await fetchBalances();
+      } else {
+        alert('Reset failed: ' + data.error);
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  };
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -738,12 +755,12 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Group Selector */}
+        {/* Group Selector & Reset */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <label className="form-label" style={{ margin: 0 }}>Active Group:</label>
           <select 
             className="form-select" 
-            style={{ width: '220px', padding: '0.5rem' }}
+            style={{ width: '180px', padding: '0.5rem' }}
             value={selectedGroupId || ''}
             onChange={(e) => setSelectedGroupId(parseInt(e.target.value, 10))}
           >
@@ -751,6 +768,9 @@ export default function Home() {
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
+          <button onClick={handleResetDatabase} className="btn btn-secondary" style={{ padding: '0.5rem 0.75rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)', fontSize: '0.85rem' }}>
+            Reset DB
+          </button>
         </div>
       </header>
 
