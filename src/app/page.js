@@ -133,6 +133,14 @@ export default function Home() {
     }
   }, [selectedGroupId, auditUser]);
 
+  // Keep manual forms payer matched to loggedInUser
+  useEffect(() => {
+    if (loggedInUser) {
+      setManualExpense(prev => ({ ...prev, paid_by_user_id: String(loggedInUser.id) }));
+      setManualSettlement(prev => ({ ...prev, payer_id: String(loggedInUser.id) }));
+    }
+  }, [loggedInUser]);
+
   const fetchBalances = async () => {
     if (!selectedGroupId) return;
     try {
@@ -682,7 +690,7 @@ export default function Home() {
           description: '',
           amount: '',
           currency: 'INR',
-          paid_by_user_id: '',
+          paid_by_user_id: String(loggedInUser?.id || ''),
           split_type: 'equal',
           expense_date: new Date().toISOString().split('T')[0],
           notes: '',
@@ -734,7 +742,7 @@ export default function Home() {
       const data = await res.json();
       if (data.success) {
         setManualSettlement({
-          payer_id: '',
+          payer_id: String(loggedInUser?.id || ''),
           payee_id: '',
           amount: '',
           currency: 'INR',
@@ -1674,17 +1682,13 @@ export default function Home() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Paid By</label>
-                    <select 
-                      className="form-select"
-                      value={manualExpense.paid_by_user_id}
-                      onChange={(e) => setManualExpense(prev => ({ ...prev, paid_by_user_id: e.target.value }))}
-                      required
-                    >
-                      <option value="">-- Select Payer --</option>
-                      {currentGroup?.members?.map(m => (
-                        <option key={m.id} value={m.user_id}>{m.name}</option>
-                      ))}
-                    </select>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={loggedInUser?.name || ''} 
+                      disabled 
+                      style={{ background: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-secondary)' }}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Date</label>
@@ -1787,17 +1791,13 @@ export default function Home() {
               <form onSubmit={handleAddSettlement}>
                 <div className="form-group">
                   <label className="form-label">From (Payer)</label>
-                  <select 
-                    className="form-select"
-                    value={manualSettlement.payer_id}
-                    onChange={(e) => setManualSettlement(prev => ({ ...prev, payer_id: e.target.value }))}
-                    required
-                  >
-                    <option value="">-- Select Debtor --</option>
-                    {currentGroup?.members?.map(m => (
-                      <option key={m.id} value={m.user_id}>{m.name}</option>
-                    ))}
-                  </select>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={loggedInUser?.name || ''} 
+                    disabled 
+                    style={{ background: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-secondary)' }}
+                  />
                 </div>
 
                 <div className="form-group">
@@ -1809,7 +1809,7 @@ export default function Home() {
                     required
                   >
                     <option value="">-- Select Creditor --</option>
-                    {currentGroup?.members?.map(m => (
+                    {currentGroup?.members?.filter(m => m.user_id !== loggedInUser?.id).map(m => (
                       <option key={m.id} value={m.user_id}>{m.name}</option>
                     ))}
                   </select>
