@@ -604,11 +604,45 @@ export default function Home() {
     const finalPayerId = paid_by_user_id || String(loggedInUser?.id || '');
     
     if (!description || !amount || !finalPayerId || !split_type || !expense_date || split_with.length === 0) {
-      alert('Please fill out all fields.');
+      alert('Please fill out all fields and select at least one split participant.');
       return;
     }
 
     const amtFloat = parseFloat(amount);
+    if (isNaN(amtFloat) || amtFloat <= 0) {
+      alert('Expense amount must be a positive number.');
+      return;
+    }
+
+    // Validation for split distributions
+    if (split_type === 'percentage') {
+      let sumPct = 0;
+      split_with.forEach(id => {
+        sumPct += parseFloat(split_details[id] || 0);
+      });
+      if (Math.abs(sumPct - 100) > 0.01) {
+        alert(`The split percentages must sum to exactly 100%. Currently it is ${sumPct}%.`);
+        return;
+      }
+    } else if (split_type === 'unequal') {
+      let sumAmt = 0;
+      split_with.forEach(id => {
+        sumAmt += parseFloat(split_details[id] || 0);
+      });
+      if (Math.abs(sumAmt - amtFloat) > 0.01) {
+        alert(`The sum of split amounts (₹${sumAmt}) must equal the total expense amount (₹${amtFloat}).`);
+        return;
+      }
+    } else if (split_type === 'share') {
+      let sumShares = 0;
+      split_with.forEach(id => {
+        sumShares += parseFloat(split_details[id] || 0);
+      });
+      if (sumShares <= 0) {
+        alert('The sum of split share weights must be greater than 0.');
+        return;
+      }
+    }
     let convertedInr = amtFloat;
     if (currency === 'USD') {
       convertedInr = Math.round(amtFloat * usdRate * 100) / 100;
@@ -719,6 +753,15 @@ export default function Home() {
     }
 
     const amtFloat = parseFloat(amount);
+    if (isNaN(amtFloat) || amtFloat <= 0) {
+      alert('Settlement amount must be a positive number.');
+      return;
+    }
+
+    if (parseInt(finalPayerId, 10) === parseInt(payee_id, 10)) {
+      alert('Payer and Payee cannot be the same person.');
+      return;
+    }
     let convertedInr = amtFloat;
     if (currency === 'USD') {
       convertedInr = Math.round(amtFloat * usdRate * 100) / 100;
@@ -858,6 +901,45 @@ export default function Home() {
     const [y, m, d] = isoStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const getSplitTotalText = () => {
+    const { split_type, split_with, split_details, amount } = manualExpense;
+    if (split_type === 'equal') return null;
+
+    let sum = 0;
+    split_with.forEach(id => {
+      sum += parseFloat(split_details[id] || 0);
+    });
+
+    if (split_type === 'percentage') {
+      const isOk = Math.abs(sum - 100) < 0.01;
+      return (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: isOk ? 'var(--color-success)' : 'var(--color-danger)' }}>
+          <strong>Total:</strong> {sum}% / 100% {isOk ? '✅' : '❌'}
+        </div>
+      );
+    }
+
+    if (split_type === 'unequal') {
+      const target = parseFloat(amount || 0);
+      const isOk = Math.abs(sum - target) < 0.01;
+      return (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: isOk ? 'var(--color-success)' : 'var(--color-danger)' }}>
+          <strong>Total Distributed:</strong> ₹{sum.toLocaleString()} / ₹{target.toLocaleString()} {isOk ? '✅' : '❌'}
+        </div>
+      );
+    }
+
+    if (split_type === 'share') {
+      return (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: sum > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+          <strong>Total Shares:</strong> {sum} {sum > 0 ? '✅' : '❌'}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -1762,6 +1844,7 @@ export default function Home() {
                       );
                     })}
                   </div>
+                  {getSplitTotalText()}
                 </div>
 
                 <div className="form-group">
