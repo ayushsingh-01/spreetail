@@ -1140,17 +1140,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Upgrade Box banner */}
-        <div className="sidebar-upgrade">
-          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>💎</div>
-          <div className="sidebar-upgrade-title">Upgrade plan</div>
-          <div className="sidebar-upgrade-desc">
-            "Upgrade Fynix today to unlock smarter insights and financial control."
-          </div>
-          <button className="btn" style={{ background: '#0f172a', color: '#ffffff', width: '100%', fontSize: '0.8rem', padding: '0.5rem', borderRadius: '8px' }} onClick={() => alert('Upgrade to Premium to unlock multi-currency automated banking integration!')}>
-            Upgrade your Plan ↗
-          </button>
-        </div>
       </aside>
 
       {/* Main Content Area */}
@@ -1175,17 +1164,7 @@ export default function Home() {
           </div>
 
           <div className="top-navbar-actions">
-            {/* Search mockup */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <span style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>🔍</span>
-              <input 
-                type="text" 
-                placeholder="Search anything" 
-                style={{ padding: '0.5rem 2.5rem 0.5rem 2rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', width: '200px', backgroundColor: '#ffffff' }}
-                disabled
-              />
-              <span style={{ position: 'absolute', right: '10px', fontSize: '0.75rem', color: 'var(--text-muted)', background: '#f1f5f9', padding: '0.1rem 0.3rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>⌘ F</span>
-            </div>
+            {/* Search mockup removed */}
 
             {/* Selector */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1237,10 +1216,10 @@ export default function Home() {
             <div className="dashboard-grid">
               {/* Column 1 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                {/* Your Cards */}
+                {/* Dynamic Group Member Cards */}
                 <div className="card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>Your Cards</h3>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>{currentGroup?.name || 'Your Cards'}</h3>
                     <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: 'auto' }} onClick={() => setActiveTab('groups')}>+</button>
                   </div>
                   <div className="cards-container">
@@ -1283,84 +1262,6 @@ export default function Home() {
                       ₹{ledger.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.totalAmount, 0).toLocaleString()} spent of ₹50,000.00
                     </div>
                   </div>
-                </div>
-
-                {/* My Wallets cumulative trend graph */}
-                <div className="card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>My Wallets</h3>
-                    <select className="form-select" style={{ width: '100px', padding: '0.25rem', fontSize: '0.75rem', height: 'auto', border: 'none', background: 'transparent', fontWeight: 'bold' }} disabled>
-                      <option>Monthly</option>
-                    </select>
-                  </div>
-                  
-                  {/* Tabs menu */}
-                  <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: '600' }}>
-                    <span style={{ color: 'var(--color-primary)', borderBottom: '2px solid var(--color-primary)', paddingBottom: '0.5rem', cursor: 'pointer' }}>Wallet Balance</span>
-                    <span style={{ color: 'var(--text-muted)', cursor: 'not-allowed' }}>Card Transaction</span>
-                    <span style={{ color: 'var(--text-muted)', cursor: 'not-allowed' }}>Investment</span>
-                  </div>
-
-                  {(() => {
-                    const chart = drawLineChart();
-                    if (!chart) {
-                      return (
-                        <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                          No transactions recorded yet to plot.
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className="svg-chart-container">
-                        <svg viewBox={`0 0 ${chart.width} ${chart.height}`} width="100%" height="100%">
-                          <defs>
-                            <linearGradient id="chart-gradient-id" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.25" />
-                              <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.0" />
-                            </linearGradient>
-                          </defs>
-
-                          {/* Grid lines */}
-                          <line x1="20" y1="20" x2="340" y2="20" className="chart-grid" />
-                          <line x1="20" y1="52.5" x2="340" y2="52.5" className="chart-grid" />
-                          <line x1="20" y1="85" x2="340" y2="85" className="chart-grid" />
-                          <line x1="20" y1="117.5" x2="340" y2="117.5" className="chart-grid" />
-                          <line x1="20" y1="130" x2="340" y2="130" className="chart-grid" style={{ stroke: '#cbd5e1' }} />
-
-                          {/* Gradient Area */}
-                          <path d={chart.areaD} className="chart-gradient" />
-
-                          {/* Trend line */}
-                          <path d={chart.pathD} className="chart-line" />
-
-                          {/* Tooltip highlighted point (last point) */}
-                          {chart.points.map((p, idx) => {
-                            const isLast = idx === chart.points.length - 1;
-                            return (
-                              <g key={idx}>
-                                <circle cx={p.x} cy={p.y} r={isLast ? 5 : 3} className="chart-dot" />
-                                {isLast && (
-                                  <g>
-                                    <rect x={p.x - 35} y={p.y - 28} width="70" height="20" rx="4" fill="var(--text-primary)" />
-                                    <text x={p.x} y={p.y - 15} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="700">
-                                      ₹{Math.round(p.val).toLocaleString()}
-                                    </text>
-                                  </g>
-                                )}
-                              </g>
-                            );
-                          })}
-
-                          {/* X-axis labels */}
-                          {chart.points.filter((_, i) => i === 0 || i === Math.floor(chart.points.length / 2) || i === chart.points.length - 1).map((p, idx) => (
-                            <text key={idx} x={p.x} y="145" textAnchor="middle" className="chart-axis-text">
-                              {p.date.slice(5)}
-                            </text>
-                          ))}
-                        </svg>
-                      </div>
-                    );
-                  })()}
                 </div>
               </div>
 
