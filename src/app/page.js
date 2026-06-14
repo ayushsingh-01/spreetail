@@ -189,7 +189,10 @@ export default function Home() {
               rowRes.percentageDecision = 'normalize'; // Default normalize
             }
             if (anom.type === 'MEMBERSHIP_OUT_OF_BOUNDS') {
-              rowRes.membershipDecision = 'remove'; // Default remove out-of-bounds user from split
+              const isPayer = row.paidByNormalized === anom.user;
+              const hasVisitingNote = (row.notes || '').toLowerCase().includes('visit') || 
+                                      (row.description || '').toLowerCase().includes('visit');
+              rowRes.membershipDecision = (isPayer || hasVisitingNote) ? 'keep' : 'remove';
             }
             if (anom.type === 'EXTERNAL_MEMBER_INCLUDED') {
               rowRes.externalDecision = 'add_kabir'; // Default to adding Kabir
