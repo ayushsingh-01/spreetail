@@ -71,3 +71,14 @@ This log documents the significant engineering and product decisions made during
 *   **Rationale:**
     *   Directly addresses Rohan's request: *"No magic numbers. If the app says I owe ₹2,300, I want to see exactly which expenses make that up."*
     *   Provides full accountability, allowing any user to audit their balance calculation by hand.
+
+---
+
+## 7. CSV Ingestion Group Routing (Record-Level Target Group Mapping)
+*   **Options Considered:**
+    1.  **Single-Group Ingestion:** Forcing the user to select one group at the top and importing all CSV records into that single group.
+    2.  **Auto-Classification & Tabular Review (Chosen):** Dynamically analyze each record, auto-classify it into the correct group (Flatmates vs Goa Trip) using heuristics (dates, keywords, group members), and present a tabular review page allowing manual target group overrides per row.
+*   **Decision:** **Auto-Classification & Tabular Review**
+*   **Rationale:**
+    *   The CSV contains a mixture of long-term household expenses and trip-specific expenses. Ingesting everything into a single group breaks the isolation of group-wise balance sheets.
+    *   By auto-classifying them dynamically, we reduce user friction. Presenting a complete interactive tabular review interface ensures the user retains full agency and oversight before database commits.

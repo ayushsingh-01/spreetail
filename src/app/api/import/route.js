@@ -19,15 +19,17 @@ export async function POST(request) {
     // Find duplicates/conflicts
     const duplicates = detectDuplicates(records);
 
-    // Get all users in the system to help with manual resolutions
+    // Get all users and groups in the system to help with manual resolutions
     const db = getDb();
     const dbUsers = db.prepare('SELECT id, name FROM users').all();
+    const dbGroups = db.prepare('SELECT id, name FROM groups').all();
 
     return NextResponse.json({
       success: true,
       records,
       duplicates,
-      systemUsers: dbUsers
+      systemUsers: dbUsers,
+      systemGroups: dbGroups
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

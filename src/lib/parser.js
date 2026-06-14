@@ -169,6 +169,35 @@ export function detectDuplicates(rows) {
   return duplicates;
 }
 
+export function classifyGroup(record, parsedDate) {
+  const description = (record.description || '').toLowerCase();
+  const splitWith = (record.split_with || '').toLowerCase();
+  const notes = (record.notes || '').toLowerCase();
+  
+  const hasGoaKeyword = description.includes('goa') || 
+                         description.includes('thalassa') || 
+                         description.includes('beach') || 
+                         description.includes('parasailing') || 
+                         description.includes('shack') ||
+                         notes.includes('goa') ||
+                         notes.includes('trip');
+
+  const hasGoaMembers = splitWith.includes('dev') || splitWith.includes('kabir');
+
+  let isGoaDate = false;
+  if (parsedDate) {
+    const date = new Date(parsedDate);
+    const goaStart = new Date('2026-03-08');
+    const goaEnd = new Date('2026-03-14');
+    isGoaDate = date >= goaStart && date <= goaEnd;
+  }
+
+  if (hasGoaKeyword || hasGoaMembers || isGoaDate) {
+    return 'Goa Trip 2026';
+  }
+  return 'Flatmates 4B';
+}
+
 export function parseCSVData(csvText) {
   // Parse CSV
   const records = parse(csvText, {
@@ -425,6 +454,8 @@ export function parseCSVData(csvText) {
       });
     }
 
+    const suggestedGroup = classifyGroup(record, parsedDate);
+
     return {
       rowNum,
       dateRaw: record.date,
@@ -443,6 +474,7 @@ export function parseCSVData(csvText) {
       splitDetailsRaw: record.split_details,
       splitDetails,
       notes: record.notes,
+      suggestedGroup,
       anomalies
     };
   });

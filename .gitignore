@@ -1,0 +1,8 @@
+node_modules
+.next
+database.sqlite*
+*.sqlite
+*.sqlite-journal
+.env*.local
+.DS_Store
+scratch/

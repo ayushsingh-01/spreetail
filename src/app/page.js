@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const USER_ALIASES = {
   'aisha': 'Aisha',
@@ -172,6 +172,12 @@ export default function Home() {
         data.records.forEach(row => {
           const rowRes = {};
           
+          // Set default group decision using suggestedGroup
+          const matchedGroup = data.systemGroups?.find(g => g.name === row.suggestedGroup) || 
+                               groups.find(g => g.name === row.suggestedGroup) || 
+                               groups[0];
+          rowRes.groupDecision = matchedGroup ? matchedGroup.id : null;
+          
           row.anomalies.forEach(anom => {
             if (anom.type === 'DATE_AMBIGUOUS') {
               rowRes.dateDecision = '05-04-2026'; // Default to April 5th as per note
@@ -266,6 +272,9 @@ export default function Home() {
       }
 
       const rowRes = resolutions[row.rowNum] || {};
+      const rowGroupId = rowRes.groupDecision || selectedGroupId;
+      const targetGroupObj = groups.find(g => g.id === rowGroupId);
+      const targetGroupName = targetGroupObj ? targetGroupObj.name : 'Unknown Group';
 
       // Date Resolution
       let finalDate = row.date;
@@ -327,6 +336,7 @@ export default function Home() {
       if (isSettlement) {
         const payeeName = row.splitWithNormalized[0];
         resolvedSettlements.push({
+          groupId: rowGroupId,
           payer_name: payerName,
           payee_name: payeeName,
           amount,
@@ -335,7 +345,7 @@ export default function Home() {
           settlement_date: finalDate,
           notes: row.notes || 'Imported peer-to-peer settlement'
         });
-        anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Logged directly as a Settlement of INR ${convertedAmount} from ${payerName} to ${payeeName}.`);
+        anomalyReportLines.push(`Row ${row.rowNum} ("${row.description}"): Logged directly as a Settlement of INR ${convertedAmount} from ${payerName} to ${payeeName} in group "${targetGroupName}".`);
         continue;
       }
 
@@ -503,6 +513,7 @@ export default function Home() {
       }
 
       resolvedExpenses.push({
+        groupId: rowGroupId,
         description: row.description,
         amount: row.amount,
         currency: row.currency,
@@ -807,6 +818,29 @@ export default function Home() {
     );
   }
 
+  const getRowsToSkip = () => {
+    const skipSet = new Set();
+    if (parsedCSV && parsedCSV.duplicates) {
+      parsedCSV.duplicates.forEach(dup => {
+        const key = `${dup.indexA}_${dup.indexB}`;
+        const choice = selectedDuplicates[key];
+        if (choice === 'keepA') {
+          skipSet.add(dup.rowB.rowNum);
+        } else if (choice === 'keepB') {
+          skipSet.add(dup.rowA.rowNum);
+        } else if (choice === 'deleteBoth') {
+          skipSet.add(dup.rowA.rowNum);
+          skipSet.add(dup.rowB.rowNum);
+        }
+      });
+    }
+    return skipSet;
+  };
+  const rowsToSkip = getRowsToSkip();
+
+  const myDebts = payments.filter(p => p.from === loggedInUser?.name);
+  const myCredits = payments.filter(p => p.to === loggedInUser?.name);
+
   return (
     <div className="container">
       {/* Header */}
@@ -853,7 +887,7 @@ export default function Home() {
           Dashboard
         </button>
         <button className={`tab-btn ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
-          Audit Ledger (Rohan)
+          Audit Ledger
         </button>
         <button className={`tab-btn ${activeTab === 'import' ? 'active' : ''}`} onClick={() => setActiveTab('import')}>
           CSV Ingestion Wizard
@@ -904,6 +938,46 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Personal Balance Card */}
+              {loggedInUser && (
+                <div className="card" style={{ marginBottom: '2rem' }}>
+                  <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem' }}>
+                    <span>👤 Your Outstanding Settlements ({loggedInUser.name})</span>
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                    How much you owe or are owed in <strong>{currentGroup?.name}</strong>:
+                  </p>
+
+                  {myDebts.length === 0 && myCredits.length === 0 ? (
+                    <div style={{ padding: '0.75rem 1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', color: 'var(--color-success)', fontSize: '0.9rem' }}>
+                      <strong>You are fully settled!</strong> No outstanding debts or credits in this group.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {myDebts.map((p, idx) => (
+                        <div key={`mydebt-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                          <div>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>You owe</span>{' '}
+                            <strong style={{ color: 'var(--text-primary)' }}>{p.to}</strong>
+                          </div>
+                          <strong style={{ color: 'var(--color-danger)', fontSize: '1.1rem' }}>₹{p.amount.toLocaleString()}</strong>
+                        </div>
+                      ))}
+
+                      {myCredits.map((p, idx) => (
+                        <div key={`mycredit-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                          <div>
+                            <strong style={{ color: 'var(--text-primary)' }}>{p.from}</strong>{' '}
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>owes you</span>
+                          </div>
+                          <strong style={{ color: 'var(--color-success)', fontSize: '1.1rem' }}>₹{p.amount.toLocaleString()}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Members Timeline List */}
               <div className="card">
                 <h3 className="section-title">Active Members Timeline</h3>
@@ -920,13 +994,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 1b. AISHA'S VIEW (DEBT MINIMIZATION) */}
+            {/* 1b. DEBT MINIMIZATION VIEW */}
             <div>
               <div className="card">
-                <h2 className="section-title">Aisha's View: Debt Settlement</h2>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                  "I just want one number per person. Who pays whom, how much, done."
-                </p>
+                <h2 className="section-title">Debt Settlement Minimization</h2>
 
                 {payments.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)' }}>
@@ -952,15 +1023,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* 2. LEDGER TAB (ROHAN'S VIEW) */}
+        {/* 2. LEDGER TAB */}
         {activeTab === 'ledger' && (
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div>
-                <h2>Rohan's View: Individual Balance Ledger</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  "No magic numbers. If the app says I owe, I want to see exactly which expenses make that up."
-                </p>
+                <h2>Individual Balance Ledger</h2>
               </div>
 
               {/* Selector */}
@@ -1102,215 +1170,283 @@ export default function Home() {
                   Please confirm policies and select resolutions where required.
                 </p>
 
-                <div className="anomaly-list">
-                  {/* Render Duplicate Groups */}
-                  {parsedCSV.duplicates.map((dup, dIdx) => {
-                    const key = `${dup.indexA}_${dup.indexB}`;
-                    return (
-                      <div key={`dup-${key}`} className="anomaly-card has-error">
-                        <div className="anomaly-meta">
-                          <span className="anomaly-title">Duplicate / Conflict Entry Conflict</span>
-                          <span className="badge badge-danger">High Severity</span>
-                        </div>
-                        <p className="anomaly-details">{dup.description}</p>
-                        
-                        <div className="resolution-box">
-                          <span className="form-label">Resolution Action:</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name={`dup-choice-${key}`}
-                                checked={selectedDuplicates[key] === 'keepA'}
-                                onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepA' }))}
-                              />
-                              <span>Keep Row {dup.rowA.rowNum} ("{dup.rowA.description}") and discard Row {dup.rowB.rowNum}</span>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name={`dup-choice-${key}`}
-                                checked={selectedDuplicates[key] === 'keepB'}
-                                onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepB' }))}
-                              />
-                              <span>Keep Row {dup.rowB.rowNum} ("{dup.rowB.description}") and discard Row {dup.rowA.rowNum}</span>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name={`dup-choice-${key}`}
-                                checked={selectedDuplicates[key] === 'keepBoth'}
-                                onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepBoth' }))}
-                              />
-                              <span>Keep both records as separate, distinct transactions</span>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name={`dup-choice-${key}`}
-                                checked={selectedDuplicates[key] === 'deleteBoth'}
-                                onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'deleteBoth' }))}
-                              />
-                              <span style={{ color: 'var(--color-danger)' }}>Discard/Delete both records</span>
-                            </label>
+
+                      {/* Render Duplicate Groups */}
+                      {parsedCSV.duplicates.length > 0 && (
+                        <div style={{ marginBottom: '2rem' }}>
+                          <h3>Duplicate & Conflict Resolution</h3>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                            We detected overlapping events on the same day. Please select which records to retain.
+                          </p>
+                          <div className="anomaly-list" style={{ marginBottom: 0 }}>
+                            {parsedCSV.duplicates.map((dup) => {
+                              const key = `${dup.indexA}_${dup.indexB}`;
+                              return (
+                                <div key={`dup-${key}`} className="anomaly-card has-error">
+                                  <div className="anomaly-meta">
+                                    <span className="anomaly-title">Duplicate / Conflict Entry Conflict</span>
+                                    <span className="badge badge-danger">High Severity</span>
+                                  </div>
+                                  <p className="anomaly-details">{dup.description}</p>
+                                  
+                                  <div className="resolution-box">
+                                    <span className="form-label">Resolution Action:</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                        <input 
+                                          type="radio" 
+                                          name={`dup-choice-${key}`}
+                                          checked={selectedDuplicates[key] === 'keepA'}
+                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepA' }))}
+                                        />
+                                        <span>Keep Row {dup.rowA.rowNum} ("{dup.rowA.description}") and discard Row {dup.rowB.rowNum}</span>
+                                      </label>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                        <input 
+                                          type="radio" 
+                                          name={`dup-choice-${key}`}
+                                          checked={selectedDuplicates[key] === 'keepB'}
+                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepB' }))}
+                                        />
+                                        <span>Keep Row {dup.rowB.rowNum} ("{dup.rowB.description}") and discard Row {dup.rowA.rowNum}</span>
+                                      </label>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                        <input 
+                                          type="radio" 
+                                          name={`dup-choice-${key}`}
+                                          checked={selectedDuplicates[key] === 'keepBoth'}
+                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepBoth' }))}
+                                        />
+                                        <span>Keep both records as separate, distinct transactions</span>
+                                      </label>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                        <input 
+                                          type="radio" 
+                                          name={`dup-choice-${key}`}
+                                          checked={selectedDuplicates[key] === 'deleteBoth'}
+                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'deleteBoth' }))}
+                                        />
+                                        <span style={{ color: 'var(--color-danger)' }}>Discard/Delete both records</span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
+                      )}
+
+                      <h3>CSV Rows & Target Group Destinations</h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                        Review each expense destination group (auto-classified based on date/members) and resolve anomalies.
+                      </p>
+
+                      <div className="ledger-table-container" style={{ maxHeight: '600px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'rgba(0, 0, 0, 0.25)', padding: '0.5rem', marginBottom: '1.5rem' }}>
+                        <table className="ledger-table" style={{ width: '100%' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ width: '60px' }}>Row</th>
+                              <th style={{ width: '100px' }}>Date</th>
+                              <th>Description</th>
+                              <th style={{ width: '120px' }}>Amount</th>
+                              <th style={{ width: '120px' }}>Payer</th>
+                              <th style={{ width: '220px' }}>Target Group Destination</th>
+                              <th style={{ width: '100px' }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parsedCSV.records.map((row) => {
+                              const skip = rowsToSkip.has(row.rowNum);
+                              const rowAnomalies = row.anomalies || [];
+                              const hasHigh = rowAnomalies.some(a => a.severity === 'HIGH');
+                              const hasMedium = rowAnomalies.some(a => a.severity === 'MEDIUM');
+                              const statusText = skip ? 'Skipped' : rowAnomalies.length > 0 ? `${rowAnomalies.length} Anom` : 'Clear';
+                              const statusBadge = skip 
+                                ? 'badge-secondary' 
+                                : rowAnomalies.length > 0 
+                                  ? (hasHigh ? 'badge-danger' : 'badge-warning') 
+                                  : 'badge-success';
+
+                              return (
+                                <React.Fragment key={row.rowNum}>
+                                  <tr style={{ opacity: skip ? 0.35 : 1, transition: 'opacity 0.2s' }}>
+                                    <td style={{ fontWeight: '600', color: 'var(--color-primary)' }}>#{row.rowNum}</td>
+                                    <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{row.date || row.dateRaw}</td>
+                                    <td>
+                                      <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{row.description}</div>
+                                      {row.notes && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{row.notes}</div>}
+                                    </td>
+                                    <td>
+                                      {row.currency !== 'INR' && (
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>
+                                          ({row.amountRaw} {row.currencyRaw})
+                                        </span>
+                                      )}
+                                      ₹{row.amount}
+                                    </td>
+                                    <td>
+                                      <span style={{ color: rowAnomalies.some(a => a.type === 'PAYER_MISSING') ? 'var(--color-danger)' : 'var(--text-primary)' }}>
+                                        {row.paidByNormalized || row.paidByRaw || '(Missing)'}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <select
+                                        className="form-select"
+                                        style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', background: 'var(--bg-primary)' }}
+                                        value={resolutions[row.rowNum]?.groupDecision || ''}
+                                        onChange={(e) => updateResolution(row.rowNum, 'groupDecision', parseInt(e.target.value, 10))}
+                                        disabled={skip}
+                                      >
+                                        {groups.map(g => (
+                                          <option key={g.id} value={g.id}>{g.name}</option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td>
+                                      <span className={`badge ${statusBadge}`} style={{ fontSize: '0.7rem' }}>{statusText}</span>
+                                    </td>
+                                  </tr>
+                                  
+                                  {/* Render Inline Anomalies if any */}
+                                  {!skip && rowAnomalies.length > 0 && (
+                                    <tr>
+                                      <td colSpan="7" style={{ padding: '0.5rem 1rem 1rem 1rem', background: 'rgba(255, 255, 255, 0.01)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderLeft: '2px solid var(--color-primary)', paddingLeft: '1rem', margin: '0.25rem 0 0.5rem 0' }}>
+                                          {rowAnomalies.map((anom, aIdx) => {
+                                            const isHigh = anom.severity === 'HIGH';
+                                            const colorClass = isHigh ? 'var(--color-danger)' : anom.severity === 'MEDIUM' ? 'var(--color-warning)' : 'var(--color-primary)';
+                                            return (
+                                              <div key={aIdx} style={{ fontSize: '0.85rem' }}>
+                                                <div style={{ fontWeight: '600', color: colorClass }}>
+                                                  ⚠️ [{anom.severity}] {anom.type}: {anom.message}
+                                                </div>
+                                                
+                                                {/* Resolve options inline */}
+                                                <div style={{ marginTop: '0.25rem' }}>
+                                                  {anom.type === 'PAYER_MISSING' && (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                                                      <span className="form-label" style={{ margin: 0, fontSize: '0.8rem' }}>Choose Payer:</span>
+                                                      <select 
+                                                        className="form-select"
+                                                        style={{ width: '150px', padding: '0.25rem', fontSize: '0.8rem', background: 'var(--bg-primary)' }}
+                                                        value={resolutions[row.rowNum]?.payerDecision || ''}
+                                                        onChange={(e) => updateResolution(row.rowNum, 'payerDecision', e.target.value)}
+                                                      >
+                                                        <option value="">-- Choose Payer --</option>
+                                                        {systemUsers.map(u => (
+                                                          <option key={u.id} value={u.name}>{u.name}</option>
+                                                        ))}
+                                                      </select>
+                                                    </div>
+                                                  )}
+
+                                                  {anom.type === 'DATE_AMBIGUOUS' && (
+                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`date-choice-${row.rowNum}`}
+                                                          checked={resolutions[row.rowNum]?.dateDecision === '05-04-2026'}
+                                                          onChange={() => updateResolution(row.rowNum, 'dateDecision', '05-04-2026')}
+                                                        />
+                                                        <span>April 5, 2026 (DD-MM-YYYY)</span>
+                                                      </label>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`date-choice-${row.rowNum}`}
+                                                          checked={resolutions[row.rowNum]?.dateDecision === '04-05-2026'}
+                                                          onChange={() => updateResolution(row.rowNum, 'dateDecision', '04-05-2026')}
+                                                        />
+                                                        <span>May 4, 2026 (MM-DD-YYYY)</span>
+                                                      </label>
+                                                    </div>
+                                                  )}
+
+                                                  {anom.type === 'PERCENTAGE_SUM_ERROR' && (
+                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`pct-choice-${row.rowNum}`}
+                                                          checked={resolutions[row.rowNum]?.percentageDecision === 'normalize'}
+                                                          onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'normalize')}
+                                                        />
+                                                        <span>Auto-Normalize percentages to sum to 100% (Weighted)</span>
+                                                      </label>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`pct-choice-${row.rowNum}`}
+                                                          checked={resolutions[row.rowNum]?.percentageDecision === 'as_is'}
+                                                          onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'as_is')}
+                                                        />
+                                                        <span style={{ color: 'var(--color-danger)' }}>Import as-is</span>
+                                                      </label>
+                                                    </div>
+                                                  )}
+
+                                                  {anom.type === 'MEMBERSHIP_OUT_OF_BOUNDS' && (
+                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`mem-choice-${row.rowNum}-${anom.user}`}
+                                                          checked={resolutions[row.rowNum]?.membershipDecision === 'remove'}
+                                                          onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'remove')}
+                                                        />
+                                                        <span>Remove {anom.user} from split</span>
+                                                      </label>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`mem-choice-${row.rowNum}-${anom.user}`}
+                                                          checked={resolutions[row.rowNum]?.membershipDecision === 'keep'}
+                                                          onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'keep')}
+                                                        />
+                                                        <span>Keep {anom.user} in split</span>
+                                                      </label>
+                                                    </div>
+                                                  )}
+
+                                                  {anom.type === 'EXTERNAL_MEMBER_INCLUDED' && (
+                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`ext-choice-${row.rowNum}-${anom.user}`}
+                                                          checked={resolutions[row.rowNum]?.externalDecision === 'add_kabir'}
+                                                          onChange={() => updateResolution(row.rowNum, 'externalDecision', 'add_kabir')}
+                                                        />
+                                                        <span>Add Kabir as a temporary member</span>
+                                                      </label>
+                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                        <input 
+                                                          type="radio" 
+                                                          name={`ext-choice-${row.rowNum}-${anom.user}`}
+                                                          checked={resolutions[row.rowNum]?.externalDecision === 'assign_dev'}
+                                                          onChange={() => updateResolution(row.rowNum, 'externalDecision', 'assign_dev')}
+                                                        />
+                                                        <span>Assign Kabir's share to Dev</span>
+                                                      </label>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                    );
-                  })}
 
-                  {/* Render Row Specific Anomalies */}
-                  {parsedCSV.records.map((row) => {
-                    if (row.anomalies.length === 0) return null;
-                    
-                    return row.anomalies.map((anom, aIdx) => {
-                      const id = `anom-${row.rowNum}-${aIdx}`;
-                      const hasHigh = anom.severity === 'HIGH';
-                      const hasMedium = anom.severity === 'MEDIUM';
-                      const cardClass = hasHigh ? 'has-error' : hasMedium ? 'has-warning' : 'info';
-                      const badgeClass = hasHigh ? 'badge-danger' : hasMedium ? 'badge-warning' : 'badge-info';
-
-                      return (
-                        <div key={id} className={`anomaly-card ${cardClass}`}>
-                          <div className="anomaly-meta">
-                            <span className="anomaly-title">
-                              Row {row.rowNum} Anomaly: {anom.type} ({row.description})
-                            </span>
-                            <span className={`badge ${badgeClass}`}>{anom.severity}</span>
-                          </div>
-                          <p className="anomaly-details">{anom.message}</p>
-
-                          {/* Interactive resolutions based on anomaly type */}
-                          {anom.type === 'PAYER_MISSING' && (
-                            <div className="resolution-box">
-                              <label className="form-label">Select Payer for this expense:</label>
-                              <select 
-                                className="form-select"
-                                value={resolutions[row.rowNum]?.payerDecision || ''}
-                                onChange={(e) => updateResolution(row.rowNum, 'payerDecision', e.target.value)}
-                              >
-                                <option value="">-- Choose Payer --</option>
-                                {systemUsers.map(u => (
-                                  <option key={u.id} value={u.name}>{u.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-
-                          {anom.type === 'DATE_AMBIGUOUS' && (
-                            <div className="resolution-box">
-                              <span className="form-label">Resolve Ambiguous Date format (04-05-2026):</span>
-                              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`date-choice-${row.rowNum}`}
-                                    checked={resolutions[row.rowNum]?.dateDecision === '05-04-2026'}
-                                    onChange={() => updateResolution(row.rowNum, 'dateDecision', '05-04-2026')}
-                                  />
-                                  <span>April 5, 2026 (DD-MM-YYYY)</span>
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`date-choice-${row.rowNum}`}
-                                    checked={resolutions[row.rowNum]?.dateDecision === '04-05-2026'}
-                                    onChange={() => updateResolution(row.rowNum, 'dateDecision', '04-05-2026')}
-                                  />
-                                  <span>May 4, 2026 (MM-DD-YYYY)</span>
-                                </label>
-                              </div>
-                            </div>
-                          )}
-
-                          {anom.type === 'PERCENTAGE_SUM_ERROR' && (
-                            <div className="resolution-box">
-                              <span className="form-label">Resolve percentage summation ({anom.currentSum}%):</span>
-                              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`pct-choice-${row.rowNum}`}
-                                    checked={resolutions[row.rowNum]?.percentageDecision === 'normalize'}
-                                    onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'normalize')}
-                                  />
-                                  <span>Auto-Normalize percentages to sum to 100% (Weighted)</span>
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`pct-choice-${row.rowNum}`}
-                                    checked={resolutions[row.rowNum]?.percentageDecision === 'as_is'}
-                                    onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'as_is')}
-                                  />
-                                  <span style={{ color: 'var(--color-danger)' }}>Import as-is (May result in unbalanced calculations)</span>
-                                </label>
-                              </div>
-                            </div>
-                          )}
-
-                          {anom.type === 'MEMBERSHIP_OUT_OF_BOUNDS' && (
-                            <div className="resolution-box">
-                              <span className="form-label">Resolve membership timeline conflict for {anom.user}:</span>
-                              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`mem-choice-${row.rowNum}-${anom.user}`}
-                                    checked={resolutions[row.rowNum]?.membershipDecision === 'remove'}
-                                    onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'remove')}
-                                  />
-                                  <span>Remove {anom.user} from this split & re-split among active members</span>
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`mem-choice-${row.rowNum}-${anom.user}`}
-                                    checked={resolutions[row.rowNum]?.membershipDecision === 'keep'}
-                                    onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'keep')}
-                                  />
-                                  <span>Force include {anom.user} in split (e.g. they still owe)</span>
-                                </label>
-                              </div>
-                            </div>
-                          )}
-
-                          {anom.type === 'EXTERNAL_MEMBER_INCLUDED' && (
-                            <div className="resolution-box">
-                              <span className="form-label">Handle unrecognized member {anom.user}:</span>
-                              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`ext-choice-${row.rowNum}-${anom.user}`}
-                                    checked={resolutions[row.rowNum]?.externalDecision === 'add_kabir'}
-                                    onChange={() => updateResolution(row.rowNum, 'externalDecision', 'add_kabir')}
-                                  />
-                                  <span>Add Kabir as a temporary member of this split</span>
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name={`ext-choice-${row.rowNum}-${anom.user}`}
-                                    checked={resolutions[row.rowNum]?.externalDecision === 'assign_dev'}
-                                    onChange={() => updateResolution(row.rowNum, 'externalDecision', 'assign_dev')}
-                                  />
-                                  <span>Assign {anom.user}'s share to Dev (Dev absorbs Kabir's cost)</span>
-                                </label>
-                              </div>
-                            </div>
-                          )}
-
-                          {!['PAYER_MISSING', 'DATE_AMBIGUOUS', 'PERCENTAGE_SUM_ERROR', 'MEMBERSHIP_OUT_OF_BOUNDS', 'EXTERNAL_MEMBER_INCLUDED'].includes(anom.type) && (
-                            <div style={{ fontSize: '0.85rem', color: 'var(--color-success)', fontStyle: 'italic', marginTop: '0.25rem' }}>
-                              Auto-resolved policy will be applied (see details).
-                            </div>
-                          )}
-                        </div>
-                      );
-                    });
-                  })}
-                </div>
 
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                   <button className="btn btn-secondary" onClick={() => setImportStep('upload')}>

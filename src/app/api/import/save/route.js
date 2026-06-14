@@ -30,12 +30,12 @@ export async function POST(request) {
       };
 
       const membershipCache = {};
-      const ensureMembership = (userId, name, date) => {
-        const cacheKey = `${groupId}_${userId}`;
+      const ensureMembership = (userId, name, date, targetGroupId) => {
+        const cacheKey = `${targetGroupId}_${userId}`;
         if (membershipCache[cacheKey]) return;
 
         const exists = db.prepare('SELECT id FROM group_memberships WHERE group_id = ? AND user_id = ?')
-          .get(groupId, userId);
+          .get(targetGroupId, userId);
 
         if (!exists) {
           let joinedAt = date;
@@ -54,7 +54,7 @@ export async function POST(request) {
           }
 
           db.prepare('INSERT INTO group_memberships (group_id, user_id, joined_at, left_at) VALUES (?, ?, ?, ?)')
-            .run(groupId, userId, joinedAt, leftAt);
+            .run(targetGroupId, userId, joinedAt, leftAt);
         }
         membershipCache[cacheKey] = true;
       };
@@ -74,11 +74,12 @@ export async function POST(request) {
       let expensesCount = 0;
       if (resolvedExpenses && Array.isArray(resolvedExpenses)) {
         for (const exp of resolvedExpenses) {
+          const targetGroupId = exp.groupId || groupId;
           const paidByUserId = getOrCreateUser(exp.paid_by_name);
-          ensureMembership(paidByUserId, exp.paid_by_name, exp.expense_date);
+          ensureMembership(paidByUserId, exp.paid_by_name, exp.expense_date, targetGroupId);
 
           const res = expenseStmt.run(
-            groupId,
+            targetGroupId,
             exp.description,
             exp.amount,
             exp.currency,
@@ -94,7 +95,7 @@ export async function POST(request) {
           // Insert splits
           for (const sp of exp.splits) {
             const splitUserId = getOrCreateUser(sp.user_name);
-            ensureMembership(splitUserId, sp.user_name, exp.expense_date);
+            ensureMembership(splitUserId, sp.user_name, exp.expense_date, targetGroupId);
 
             splitStmt.run(
               expenseId,
@@ -117,13 +118,14 @@ export async function POST(request) {
       let settlementsCount = 0;
       if (resolvedSettlements && Array.isArray(resolvedSettlements)) {
         for (const set of resolvedSettlements) {
+          const targetGroupId = set.groupId || groupId;
           const payerId = getOrCreateUser(set.payer_name);
           const payeeId = getOrCreateUser(set.payee_name);
-          ensureMembership(payerId, set.payer_name, set.settlement_date);
-          ensureMembership(payeeId, set.payee_name, set.settlement_date);
+          ensureMembership(payerId, set.payer_name, set.settlement_date, targetGroupId);
+          ensureMembership(payeeId, set.payee_name, set.settlement_date, targetGroupId);
 
           settlementStmt.run(
-            groupId,
+            targetGroupId,
             payerId,
             payeeId,
             set.amount,
