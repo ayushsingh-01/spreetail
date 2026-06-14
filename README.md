@@ -9,6 +9,7 @@ A premium shared expenses manager and debt minimization application built with N
 *   **Database:** SQLite (`better-sqlite3`) executing raw SQL queries
 *   **Styling:** Vanilla CSS implementing a modern dark glassmorphic design
 *   **CSV Parsing:** `csv-parse` on API route streams
+*   **AI Collaborator:** Antigravity (Google DeepMind Advanced Agentic Coding) using Gemini 3.5 Flash
 
 ---
 
