@@ -20,6 +20,7 @@ export default function Home() {
   const [groups, setGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [systemUsers, setSystemUsers] = useState([]);
+  const [loggedInUser, setLoggedInUser] = useState(null);
   
   // Balance state
   const [balances, setBalances] = useState({});
@@ -100,8 +101,29 @@ export default function Home() {
     }
   };
 
+  const handleLogin = (user) => {
+    setLoggedInUser(user);
+    setAuditUser(user.name);
+    localStorage.setItem('expenses_logged_in_user', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    localStorage.removeItem('expenses_logged_in_user');
+  };
+
   useEffect(() => {
     loadInitialData();
+    const savedUser = localStorage.getItem('expenses_logged_in_user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setLoggedInUser(user);
+        setAuditUser(user.name);
+      } catch (err) {
+        console.error(err);
+      }
+    }
   }, []);
 
   // Recalculate balances whenever selected group or audit user changes
@@ -587,8 +609,9 @@ export default function Home() {
   const handleAddExpense = async (e) => {
     e.preventDefault();
     const { description, amount, currency, paid_by_user_id, split_type, expense_date, notes, split_with, split_details } = manualExpense;
+    const finalPayerId = paid_by_user_id || String(loggedInUser?.id || '');
     
-    if (!description || !amount || !paid_by_user_id || !split_type || !expense_date || split_with.length === 0) {
+    if (!description || !amount || !finalPayerId || !split_type || !expense_date || split_with.length === 0) {
       alert('Please fill out all fields.');
       return;
     }
@@ -662,7 +685,7 @@ export default function Home() {
           amount: amtFloat,
           currency,
           converted_amount_inr: convertedInr,
-          paid_by_user_id: parseInt(paid_by_user_id, 10),
+          paid_by_user_id: parseInt(finalPayerId, 10),
           split_type,
           expense_date,
           notes,
@@ -696,8 +719,9 @@ export default function Home() {
   const handleAddSettlement = async (e) => {
     e.preventDefault();
     const { payer_id, payee_id, amount, currency, settlement_date, notes } = manualSettlement;
+    const finalPayerId = payer_id || String(loggedInUser?.id || '');
 
-    if (!payer_id || !payee_id || !amount || !settlement_date) {
+    if (!finalPayerId || !payee_id || !amount || !settlement_date) {
       alert('Please fill out all fields.');
       return;
     }
@@ -714,7 +738,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           group_id: selectedGroupId,
-          payer_id: parseInt(payer_id, 10),
+          payer_id: parseInt(finalPayerId, 10),
           payee_id: parseInt(payee_id, 10),
           amount: amtFloat,
           currency,
@@ -743,15 +767,95 @@ export default function Home() {
     }
   };
 
+  if (!loggedInUser) {
+    return (
+      <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+        <div className="card" style={{ width: '100%', maxWidth: '440px', padding: '2.5rem', boxShadow: '0 10px 40px rgba(20, 184, 166, 0.15)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div className="logo-icon" style={{ margin: '0 auto 1.25rem auto' }}>S</div>
+            <h2>Flatmate Expense Login</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+              Select a flatmate profile to log in, or sign up with a new name.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <span className="form-label">Select Profile:</span>
+            {systemUsers.map(user => (
+              <button 
+                key={user.id} 
+                className="btn btn-secondary" 
+                style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}
+                onClick={() => handleLogin(user)}
+              >
+                <span>👤 {user.name}</span>
+                <span style={{ color: 'var(--color-primary)', fontSize: '0.8rem' }}>Log In ➔</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+            <span className="form-label">Sign Up New Flatmate:</span>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const name = e.target.username.value.trim();
+              if (!name) return;
+              
+              try {
+                const res = await fetch('/api/users', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name, email: `${name.toLowerCase()}@example.com` })
+                });
+                const user = await res.json();
+                if (user.error) {
+                  alert(user.error);
+                } else {
+                  // Reload users and log in
+                  await loadInitialData();
+                  handleLogin(user);
+                }
+              } catch (err) {
+                alert('Sign up failed: ' + err.message);
+              }
+            }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input 
+                  type="text" 
+                  name="username"
+                  className="form-input" 
+                  placeholder="Enter name..." 
+                  required
+                />
+                <button type="submit" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                  Sign Up
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       {/* Header */}
       <header className="header">
-        <div className="logo-section">
-          <div className="logo-icon">S</div>
-          <div>
-            <h1>Spreetail Shared Expenses</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Splits tracker & Debt Minimization Wizard</p>
+        <div className="logo-section" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="logo-icon">S</div>
+            <div>
+              <h1>Spreetail Shared Expenses</h1>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Splits tracker & Debt Minimization Wizard</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.03)', padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+            <span>Logged in as: <strong>{loggedInUser?.name}</strong></span>
+            <button onClick={handleLogout} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', border: 'none' }}>
+              Logout
+            </button>
           </div>
         </div>
         

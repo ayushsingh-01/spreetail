@@ -10,3 +10,26 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { name, email } = body;
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+    const db = getDb();
+    
+    // Check if user already exists
+    const existing = db.prepare('SELECT * FROM users WHERE name = ?').get(name);
+    if (existing) {
+      return NextResponse.json(existing);
+    }
+    
+    const res = db.prepare('INSERT INTO users (name, email) VALUES (?, ?)').run(name, email || '');
+    const user = { id: res.lastInsertRowid, name, email };
+    return NextResponse.json(user);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
