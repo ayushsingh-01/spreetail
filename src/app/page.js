@@ -63,6 +63,9 @@ export default function Home() {
     notes: ''
   });
 
+  const [quickSettleAmount, setQuickSettleAmount] = useState('');
+  const [quickSettlePayeeId, setQuickSettlePayeeId] = useState('');
+
   // Load Groups and Users
   const loadInitialData = async () => {
     try {
@@ -140,6 +143,62 @@ export default function Home() {
       setManualSettlement(prev => ({ ...prev, payer_id: String(loggedInUser.id) }));
     }
   }, [loggedInUser]);
+
+  // Keep quick settle widget matched to outstanding debts
+  useEffect(() => {
+    const myDebts = payments.filter(p => p.from === loggedInUser?.name);
+    if (myDebts.length > 0) {
+      const firstDebt = myDebts[0];
+      const targetUser = currentGroup?.members?.find(m => m.name === firstDebt.to);
+      if (targetUser) {
+        setQuickSettlePayeeId(String(targetUser.user_id));
+        setQuickSettleAmount(String(firstDebt.amount));
+      }
+    } else {
+      setQuickSettlePayeeId('');
+      setQuickSettleAmount('');
+    }
+  }, [payments, loggedInUser, selectedGroupId]);
+
+  const handleQuickSettleSubmit = async (e) => {
+    e.preventDefault();
+    if (!quickSettlePayeeId || !quickSettleAmount) {
+      alert('Please select a creditor and input an amount.');
+      return;
+    }
+    const amtFloat = parseFloat(quickSettleAmount);
+    if (isNaN(amtFloat) || amtFloat <= 0) {
+      alert('Please enter a positive settlement amount.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/settlements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          group_id: selectedGroupId,
+          payer_id: loggedInUser.id,
+          payee_id: parseInt(quickSettlePayeeId, 10),
+          amount: amtFloat,
+          currency: 'INR',
+          converted_amount_inr: amtFloat,
+          settlement_date: new Date().toISOString().split('T')[0],
+          notes: 'Settled via Quick Settle Dashboard Widget'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Settlement successfully recorded!');
+        setQuickSettleAmount('');
+        fetchBalances();
+      } else {
+        alert('Failed to settle: ' + data.error);
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
 
   const fetchBalances = async () => {
     if (!selectedGroupId) return;
@@ -804,33 +863,33 @@ export default function Home() {
 
   if (!loggedInUser) {
     return (
-      <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-        <div className="card" style={{ width: '100%', maxWidth: '440px', padding: '2.5rem', boxShadow: '0 10px 40px rgba(20, 184, 166, 0.15)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f8fafc', padding: '2rem' }}>
+        <div className="card" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', border: '1px solid var(--border-color)', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.03)', backgroundColor: '#ffffff' }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <div className="logo-icon" style={{ margin: '0 auto 1.25rem auto' }}>S</div>
-            <h2>Flatmate Expense Login</h2>
+            <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--color-primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.5rem', fontWeight: '800', margin: '0 auto 1rem auto' }}>F</div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)' }}>Welcome to Fynix</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-              Select a flatmate profile to log in, or sign up with a new name.
+              Securely track, audit, and split expenses. Select a profile to log in.
             </p>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <span className="form-label">Select Profile:</span>
+            <span className="form-label" style={{ fontWeight: '750', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Flatmate Profiles:</span>
             {systemUsers.map(user => (
               <button 
                 key={user.id} 
                 className="btn btn-secondary" 
-                style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}
+                style={{ justifyContent: 'space-between', padding: '0.85rem 1.25rem', borderRadius: '12px', display: 'flex', width: '100%', alignItems: 'center' }}
                 onClick={() => handleLogin(user)}
               >
-                <span>👤 {user.name}</span>
-                <span style={{ color: 'var(--color-primary)', fontSize: '0.8rem' }}>Log In ➔</span>
+                <span style={{ fontWeight: '600' }}>👤 {user.name}</span>
+                <span style={{ color: 'var(--color-primary)', fontWeight: '700', fontSize: '0.85rem' }}>Enter Fynix ➔</span>
               </button>
             ))}
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-            <span className="form-label">Sign Up New Flatmate:</span>
+            <span className="form-label" style={{ fontWeight: '750', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Create New Profile:</span>
             <form onSubmit={async (e) => {
               e.preventDefault();
               const name = e.target.username.value.trim();
@@ -846,7 +905,6 @@ export default function Home() {
                 if (user.error) {
                   alert(user.error);
                 } else {
-                  // Reload users and log in
                   await loadInitialData();
                   handleLogin(user);
                 }
@@ -859,11 +917,12 @@ export default function Home() {
                   type="text" 
                   name="username"
                   className="form-input" 
+                  style={{ borderRadius: '10px' }}
                   placeholder="Enter name..." 
                   required
                 />
-                <button type="submit" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
-                  Sign Up
+                <button type="submit" className="btn btn-primary" style={{ whiteSpace: 'nowrap', borderRadius: '10px' }}>
+                  Register
                 </button>
               </div>
             </form>
@@ -901,6 +960,98 @@ export default function Home() {
     const [y, m, d] = isoStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const getCategory = (desc) => {
+    const d = (desc || '').toLowerCase();
+    if (d.includes('rent')) return 'Rent';
+    if (d.includes('grocer') || d.includes('dmart') || d.includes('bigbasket') || d.includes('bites') || d.includes('dinner') || d.includes('pizza') || d.includes('swiggy') || d.includes('lunch') || d.includes('brunch') || d.includes('snack') || d.includes('drink') || d.includes('fruit') || d.includes('vegetable')) return 'Food & Dining';
+    if (d.includes('wifi') || d.includes('internet') || d.includes('electric') || d.includes('maid') || d.includes('cylinder') || d.includes('cleaning') || d.includes('broadband') || d.includes('gas') || d.includes('water')) return 'Utilities';
+    if (d.includes('flight') || d.includes('goa') || d.includes('villa') || d.includes('beach') || d.includes('scooter') || d.includes('airport') || d.includes('cab') || d.includes('parasailing') || d.includes('travel') || d.includes('taxi')) return 'Travel';
+    return 'Others';
+  };
+
+  const getCategoryColor = (cat) => {
+    switch (cat) {
+      case 'Food & Dining': return '#f59e0b';
+      case 'Utilities': return '#2563eb';
+      case 'Travel': return '#10b981';
+      case 'Rent': return '#ef4444';
+      default: return '#64748b';
+    }
+  };
+
+  const getCategoryIcon = (cat) => {
+    switch (cat) {
+      case 'Rent': return '🏠';
+      case 'Food & Dining': return '🍔';
+      case 'Utilities': return '⚡';
+      case 'Travel': return '✈️';
+      default: return '📦';
+    }
+  };
+
+  const drawLineChart = () => {
+    if (ledger.length === 0) return null;
+    const sortedLedger = [...ledger].sort((a, b) => a.date.localeCompare(b.date));
+    const vals = sortedLedger.map(e => e.runningBalance);
+    const minVal = Math.min(...vals, 0);
+    const maxVal = Math.max(...vals, 0);
+    const range = maxVal - minVal || 1;
+
+    const width = 360;
+    const height = 150;
+    const padding = 20;
+
+    const points = sortedLedger.map((e, idx) => {
+      const x = padding + (idx / (sortedLedger.length - 1 || 1)) * (width - 2 * padding);
+      const y = height - padding - ((e.runningBalance - minVal) / range) * (height - 2 * padding);
+      return { x, y, val: e.runningBalance, date: e.date };
+    });
+
+    let pathD = '';
+    points.forEach((p, idx) => {
+      if (idx === 0) pathD += `M ${p.x} ${p.y}`;
+      else pathD += ` L ${p.x} ${p.y}`;
+    });
+
+    let areaD = pathD;
+    if (points.length > 0) {
+      areaD += ` L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
+    }
+
+    return { points, pathD, areaD, width, height, padding, minVal, maxVal };
+  };
+
+  const drawDoughnutChart = () => {
+    const expenseLedger = ledger.filter(e => e.type === 'expense');
+    let sumFood = 0;
+    let sumUtilities = 0;
+    let sumTravel = 0;
+    let sumRent = 0;
+    let sumOther = 0;
+
+    expenseLedger.forEach(e => {
+      const cat = getCategory(e.description);
+      const amt = e.totalAmount;
+      if (cat === 'Food & Dining') sumFood += amt;
+      else if (cat === 'Utilities') sumUtilities += amt;
+      else if (cat === 'Travel') sumTravel += amt;
+      else if (cat === 'Rent') sumRent += amt;
+      else sumOther += amt;
+    });
+
+    const total = sumFood + sumUtilities + sumTravel + sumRent + sumOther;
+
+    const categories = [
+      { name: 'Food & Dining', value: sumFood, color: '#f59e0b' },
+      { name: 'Utilities', value: sumUtilities, color: '#2563eb' },
+      { name: 'Travel', value: sumTravel, color: '#10b981' },
+      { name: 'Rent', value: sumRent, color: '#ef4444' },
+      { name: 'Others', value: sumOther, color: '#64748b' }
+    ].filter(c => c.value > 0);
+
+    return { categories, total };
   };
 
   const getSplitTotalText = () => {
@@ -943,185 +1094,487 @@ export default function Home() {
   };
 
   return (
-    <div className="container">
-      {/* Header */}
-      <header className="header">
-        <div className="logo-section" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div className="logo-icon">S</div>
-            <div>
-              <h1>Spreetail Shared Expenses</h1>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Splits tracker & Debt Minimization Wizard</p>
-            </div>
+    <div className="app-layout">
+      {/* Sidebar Panel */}
+      <aside className="sidebar">
+        <div>
+          {/* Fynix branding */}
+          <div className="sidebar-logo">
+            <div className="sidebar-logo-icon">F</div>
+            <span>Fynix</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.03)', padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
-            <span>Logged in as: <strong>{loggedInUser?.name}</strong></span>
-            <button onClick={handleLogout} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', border: 'none' }}>
-              Logout
+          {/* Logged in User widget */}
+          {loggedInUser && (
+            <div className="sidebar-profile">
+              <div className="sidebar-profile-avatar">
+                {loggedInUser.name.charAt(0)}
+              </div>
+              <div className="sidebar-profile-info" style={{ flex: 1 }}>
+                <span className="sidebar-profile-name">{loggedInUser.name}</span>
+                <span className="sidebar-profile-role">Personal Account</span>
+              </div>
+              <button onClick={handleLogout} className="btn-logout" title="Log Out">
+                🚪
+              </button>
+            </div>
+          )}
+
+          <div className="sidebar-section-title">Main Menu</div>
+          <div className="sidebar-menu">
+            <button className={`sidebar-menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+              🏠 Dashboard
+            </button>
+            <button className={`sidebar-menu-item ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
+              📑 Audit Ledger
+            </button>
+            <button className={`sidebar-menu-item ${activeTab === 'import' ? 'active' : ''}`} onClick={() => setActiveTab('import')}>
+              📥 CSV Ingestion Wizard
+            </button>
+            <button className={`sidebar-menu-item ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')}>
+              👥 Group Timelines
+            </button>
+            <button className={`sidebar-menu-item ${activeTab === 'manual' ? 'active' : ''}`} onClick={() => setActiveTab('manual')}>
+              💳 Log Expense / Pay
             </button>
           </div>
         </div>
-        
-        {/* Group Selector & Reset */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <label className="form-label" style={{ margin: 0 }}>Active Group:</label>
-          <select 
-            className="form-select" 
-            style={{ width: '180px', padding: '0.5rem' }}
-            value={selectedGroupId || ''}
-            onChange={(e) => setSelectedGroupId(parseInt(e.target.value, 10))}
-          >
-            {groups.map(g => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-          </select>
-          <button onClick={handleResetDatabase} className="btn btn-secondary" style={{ padding: '0.5rem 0.75rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)', fontSize: '0.85rem' }}>
-            Reset DB
+
+        {/* Upgrade Box banner */}
+        <div className="sidebar-upgrade">
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>💎</div>
+          <div className="sidebar-upgrade-title">Upgrade plan</div>
+          <div className="sidebar-upgrade-desc">
+            "Upgrade Fynix today to unlock smarter insights and financial control."
+          </div>
+          <button className="btn" style={{ background: '#0f172a', color: '#ffffff', width: '100%', fontSize: '0.8rem', padding: '0.5rem', borderRadius: '8px' }} onClick={() => alert('Upgrade to Premium to unlock multi-currency automated banking integration!')}>
+            Upgrade your Plan ↗
           </button>
         </div>
-      </header>
+      </aside>
 
-      {/* Tabs Menu */}
-      <nav className="tabs-nav">
-        <button className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-          Dashboard
-        </button>
-        <button className={`tab-btn ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
-          Audit Ledger
-        </button>
-        <button className={`tab-btn ${activeTab === 'import' ? 'active' : ''}`} onClick={() => setActiveTab('import')}>
-          CSV Ingestion Wizard
-        </button>
-        <button className={`tab-btn ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')}>
-          Group Timelines
-        </button>
-        <button className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`} onClick={() => setActiveTab('manual')}>
-          Log Expense / Pay
-        </button>
-      </nav>
+      {/* Main Content Area */}
+      <main className="main-content">
+        {/* Top Navbar */}
+        <div className="top-navbar">
+          <div className="top-navbar-title-section">
+            <h1 className="top-navbar-title">
+              {activeTab === 'dashboard' && 'Wallet'}
+              {activeTab === 'ledger' && 'Audit Ledger'}
+              {activeTab === 'import' && 'CSV Ingestion Wizard'}
+              {activeTab === 'groups' && 'Group Timelines'}
+              {activeTab === 'manual' && 'Log Expense / Pay'}
+            </h1>
+            <p className="top-navbar-subtitle">
+              {activeTab === 'dashboard' && 'Securely store, track, and manage your money.'}
+              {activeTab === 'ledger' && 'Track individual running balances and complete transaction history.'}
+              {activeTab === 'import' && 'Review, resolve anomalies, and import expense records.'}
+              {activeTab === 'groups' && 'Define active membership date ranges for flatmates.'}
+              {activeTab === 'manual' && 'Record manual shared expenses or direct settlements.'}
+            </p>
+          </div>
 
-      {/* Tab Panels */}
-      <main>
+          <div className="top-navbar-actions">
+            {/* Search mockup */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>🔍</span>
+              <input 
+                type="text" 
+                placeholder="Search anything" 
+                style={{ padding: '0.5rem 2.5rem 0.5rem 2rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', width: '200px', backgroundColor: '#ffffff' }}
+                disabled
+              />
+              <span style={{ position: 'absolute', right: '10px', fontSize: '0.75rem', color: 'var(--text-muted)', background: '#f1f5f9', padding: '0.1rem 0.3rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>⌘ F</span>
+            </div>
+
+            {/* Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <select 
+                className="form-select" 
+                style={{ width: '160px', padding: '0.5rem', fontSize: '0.85rem', height: '38px', backgroundColor: '#ffffff' }}
+                value={selectedGroupId || ''}
+                onChange={(e) => setSelectedGroupId(parseInt(e.target.value, 10))}
+              >
+                {groups.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Reset DB */}
+            <button onClick={handleResetDatabase} className="btn btn-secondary" style={{ height: '38px', borderColor: 'var(--color-danger)', color: 'var(--color-danger)', fontSize: '0.85rem', fontWeight: 'bold' }}>
+              Reset DB
+            </button>
+
+            {/* Settings & Help Icon shortcuts */}
+            <div style={{ display: 'flex', gap: '0.45rem' }}>
+              <button className="btn btn-secondary" style={{ width: '38px', height: '38px', padding: 0 }} title="Settings" onClick={() => setActiveTab('groups')}>⚙️</button>
+              <button className="btn btn-secondary" style={{ width: '38px', height: '38px', padding: 0 }} title="Help Center" onClick={() => alert("Need help? Refer to instructions in README.md")}>❓</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Panels */}
         {/* 1. DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
-          <div className="dashboard-grid">
-            <div>
-              {/* Group Overview */}
-              <div className="card" style={{ marginBottom: '2rem' }}>
-                <h2 className="section-title">
-                  Group Balances: {currentGroup ? currentGroup.name : 'No Group'}
-                </h2>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                  {currentGroup?.description || 'Active group members and their net financial standing.'}
-                </p>
+          <>
+            {/* Overview / Balance Details banner */}
+            <div className="overview-banner">
+              <div className="top-navbar-title-section">
+                <span className="overview-balance-label">Overview / Balance Details</span>
+                <div className="overview-balance-value" style={{ color: (balances[loggedInUser?.name] || 0) >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                  {(balances[loggedInUser?.name] || 0) >= 0 ? '+' : '-'}₹{Math.abs(balances[loggedInUser?.name] || 0).toLocaleString()} INR
+                </div>
+                <div className="overview-balance-sub">
+                  Your total balance estimate in {currentGroup?.name || 'Group'} at {new Date().toISOString().split('T')[0]} 12:20
+                </div>
+              </div>
+              <button className="btn btn-primary" style={{ background: '#5bc85c', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '10px', fontWeight: 'bold' }} onClick={() => setActiveTab('manual')}>
+                🟢 Manage Balance
+              </button>
+            </div>
 
-                <div className="balance-card-grid">
-                  {Object.keys(balances).length === 0 ? (
-                    <p style={{ color: 'var(--text-muted)' }}>No transactions yet in this group.</p>
-                  ) : (
-                    Object.keys(balances).map(name => {
-                      const val = balances[name];
-                      const statusClass = val > 0.01 ? 'positive' : val < -0.01 ? 'negative' : 'neutral';
+            <div className="dashboard-grid">
+              {/* Column 1 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {/* Your Cards */}
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>Your Cards</h3>
+                    <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: 'auto' }} onClick={() => setActiveTab('groups')}>+</button>
+                  </div>
+                  <div className="cards-container">
+                    {currentGroup?.members?.map((m, idx) => {
+                      const val = balances[m.name] || 0;
+                      const cardType = idx % 3 === 0 ? 'bank-card-personal' : idx % 3 === 1 ? 'bank-card-business' : 'bank-card-business-2';
                       return (
-                        <div key={name} className={`bal-card ${statusClass}`}>
-                          <div className="bal-card-name">{name}</div>
-                          <div className={`bal-card-val ${statusClass}`}>
-                            {val > 0.01 ? `+₹${val.toLocaleString()}` : val < -0.01 ? `-₹${Math.abs(val).toLocaleString()}` : `₹0`}
+                        <div key={m.id} className={`bank-card ${cardType} ${auditUser === m.name ? 'active' : ''}`} onClick={() => { setAuditUser(m.name); setActiveTab('ledger'); }}>
+                          <div className="bank-card-header">
+                            <div className="bank-card-logo">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 22h20L12 2z"/></svg>
+                              <span>{m.name}</span>
+                            </div>
+                            <div className="bank-card-chip"></div>
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                            {val > 0.01 ? 'Owed to them' : val < -0.01 ? 'Owes others' : 'Settled'}
+                          <div className="bank-card-number">
+                            •••• •••• •••• {String(m.user_id).padStart(4, '0')}
+                          </div>
+                          <div className="bank-card-footer">
+                            <span className="bank-card-name">{m.name === loggedInUser?.name ? 'Personal Account' : 'Group Member'}</span>
+                            <span className="bank-card-balance">
+                              {val >= 0 ? '+' : '-'}₹{Math.abs(val).toLocaleString()}
+                            </span>
                           </div>
                         </div>
                       );
-                    })
-                  )}
+                    })}
+                  </div>
+
+                  {/* Spending Limits progress tracker */}
+                  <div className="spending-limits">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                      <span>Spending Limits</span>
+                      <span>{Math.round((ledger.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.totalAmount, 0) / 50000) * 100)}%</span>
+                    </div>
+                    <div className="limit-progress-bar">
+                      <div className="limit-progress-fill" style={{ width: `${Math.min(100, (ledger.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.totalAmount, 0) / 50000) * 100)}%` }}></div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                      ₹{ledger.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.totalAmount, 0).toLocaleString()} spent of ₹50,000.00
+                    </div>
+                  </div>
+                </div>
+
+                {/* My Wallets cumulative trend graph */}
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>My Wallets</h3>
+                    <select className="form-select" style={{ width: '100px', padding: '0.25rem', fontSize: '0.75rem', height: 'auto', border: 'none', background: 'transparent', fontWeight: 'bold' }} disabled>
+                      <option>Monthly</option>
+                    </select>
+                  </div>
+                  
+                  {/* Tabs menu */}
+                  <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: '600' }}>
+                    <span style={{ color: 'var(--color-primary)', borderBottom: '2px solid var(--color-primary)', paddingBottom: '0.5rem', cursor: 'pointer' }}>Wallet Balance</span>
+                    <span style={{ color: 'var(--text-muted)', cursor: 'not-allowed' }}>Card Transaction</span>
+                    <span style={{ color: 'var(--text-muted)', cursor: 'not-allowed' }}>Investment</span>
+                  </div>
+
+                  {(() => {
+                    const chart = drawLineChart();
+                    if (!chart) {
+                      return (
+                        <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          No transactions recorded yet to plot.
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="svg-chart-container">
+                        <svg viewBox={`0 0 ${chart.width} ${chart.height}`} width="100%" height="100%">
+                          <defs>
+                            <linearGradient id="chart-gradient-id" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.25" />
+                              <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Grid lines */}
+                          <line x1="20" y1="20" x2="340" y2="20" className="chart-grid" />
+                          <line x1="20" y1="52.5" x2="340" y2="52.5" className="chart-grid" />
+                          <line x1="20" y1="85" x2="340" y2="85" className="chart-grid" />
+                          <line x1="20" y1="117.5" x2="340" y2="117.5" className="chart-grid" />
+                          <line x1="20" y1="130" x2="340" y2="130" className="chart-grid" style={{ stroke: '#cbd5e1' }} />
+
+                          {/* Gradient Area */}
+                          <path d={chart.areaD} className="chart-gradient" />
+
+                          {/* Trend line */}
+                          <path d={chart.pathD} className="chart-line" />
+
+                          {/* Tooltip highlighted point (last point) */}
+                          {chart.points.map((p, idx) => {
+                            const isLast = idx === chart.points.length - 1;
+                            return (
+                              <g key={idx}>
+                                <circle cx={p.x} cy={p.y} r={isLast ? 5 : 3} className="chart-dot" />
+                                {isLast && (
+                                  <g>
+                                    <rect x={p.x - 35} y={p.y - 28} width="70" height="20" rx="4" fill="var(--text-primary)" />
+                                    <text x={p.x} y={p.y - 15} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="700">
+                                      ₹{Math.round(p.val).toLocaleString()}
+                                    </text>
+                                  </g>
+                                )}
+                              </g>
+                            );
+                          })}
+
+                          {/* X-axis labels */}
+                          {chart.points.filter((_, i) => i === 0 || i === Math.floor(chart.points.length / 2) || i === chart.points.length - 1).map((p, idx) => (
+                            <text key={idx} x={p.x} y="145" textAnchor="middle" className="chart-axis-text">
+                              {p.date.slice(5)}
+                            </text>
+                          ))}
+                        </svg>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
-              {/* Personal Balance Card */}
-              {loggedInUser && (
-                <div className="card" style={{ marginBottom: '2rem' }}>
-                  <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem' }}>
-                    <span>👤 Your Outstanding Settlements ({loggedInUser.name})</span>
-                  </h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-                    How much you owe or are owed in <strong>{currentGroup?.name}</strong>:
-                  </p>
+              {/* Column 2 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {/* Recent Transactions list */}
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>Transactions</h3>
+                    <select className="form-select" style={{ width: '110px', padding: '0.25rem', fontSize: '0.75rem', height: 'auto', border: 'none', background: 'transparent', fontWeight: 'bold' }} disabled>
+                      <option>This Month</option>
+                    </select>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {ledger.slice(-5).reverse().map((entry, idx) => {
+                      const isExpense = entry.type === 'expense';
+                      const category = getCategory(entry.description);
+                      const icon = getCategoryIcon(category);
+                      return (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: '#f8fafc' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', border: '1px solid var(--border-color)' }}>
+                              {icon}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-primary)' }}>{entry.description}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{category} • txn_{entry.id.split('-')[1]}</div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontWeight: '800', fontSize: '0.85rem', color: entry.netChange >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                              {entry.netChange >= 0 ? '+' : '-'}₹{Math.abs(entry.netChange).toLocaleString()}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{entry.date}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {ledger.length === 0 && (
+                      <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No transactions recorded.</div>
+                    )}
+                  </div>
+                </div>
 
-                  {myDebts.length === 0 && myCredits.length === 0 ? (
-                    <div style={{ padding: '0.75rem 1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', color: 'var(--color-success)', fontSize: '0.9rem' }}>
-                      <strong>You are fully settled!</strong> No outstanding debts or credits in this group.
+                {/* All Expenses Category Breakdown */}
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>All Expenses</h3>
+                    <select className="form-select" style={{ width: '110px', padding: '0.25rem', fontSize: '0.75rem', height: 'auto', border: 'none', background: 'transparent', fontWeight: 'bold' }} disabled>
+                      <option>This Month</option>
+                    </select>
+                  </div>
+
+                  {(() => {
+                    const data = drawDoughnutChart();
+                    if (data.total === 0) {
+                      return (
+                        <div style={{ height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          No expense records to analyze.
+                        </div>
+                      );
+                    }
+                    const radius = 35;
+                    const circumference = 2 * Math.PI * radius;
+                    let currentOffset = 0;
+                    return (
+                      <div className="doughnut-container">
+                        <div className="doughnut-svg-wrapper">
+                          <svg width="100%" height="100%" viewBox="0 0 120 120">
+                            {data.categories.map((c, idx) => {
+                              const pct = c.value / data.total;
+                              const dash = pct * circumference;
+                              const offset = currentOffset;
+                              currentOffset += dash;
+                              return (
+                                <circle 
+                                  key={idx}
+                                  cx="60" 
+                                  cy="60" 
+                                  r={radius} 
+                                  fill="transparent" 
+                                  stroke={c.color} 
+                                  strokeWidth="10" 
+                                  strokeDasharray={`${dash} ${circumference - dash}`} 
+                                  strokeDashoffset={-offset} 
+                                  transform="rotate(-90 60 60)" 
+                                />
+                              );
+                            })}
+                          </svg>
+                          <div className="doughnut-text-center">
+                            <div className="doughnut-text-label">Platform</div>
+                            <div className="doughnut-text-val">₹{Math.round(data.total).toLocaleString()}</div>
+                          </div>
+                        </div>
+
+                        <div className="doughnut-legend">
+                          {data.categories.map((c, idx) => (
+                            <div key={idx} className="legend-item">
+                              <div className="legend-left">
+                                <div className="legend-color" style={{ backgroundColor: c.color }}></div>
+                                <span style={{ fontSize: '0.75rem', fontWeight: '700' }}>{c.name}</span>
+                              </div>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                {Math.round((c.value / data.total) * 100)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Debt Settlement Minimization List */}
+                <div className="card">
+                  <h3 className="section-title">Debt Settlement Minimization</h3>
+                  {payments.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🎉</div>
+                      <p>All group balances are perfectly settled!</p>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {myDebts.map((p, idx) => (
-                        <div key={`mydebt-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-                          <div>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>You owe</span>{' '}
-                            <strong style={{ color: 'var(--text-primary)' }}>{p.to}</strong>
+                    <div className="settlement-list" style={{ gap: '0.5rem' }}>
+                      {payments.map((p, idx) => (
+                        <div key={idx} className="settlement-item" style={{ padding: '0.75rem 1rem', borderRadius: '10px' }}>
+                          <div className="settlement-payer-payee" style={{ fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--color-danger)' }}>{p.from}</span>
+                            <span className="settlement-arrow" style={{ fontSize: '1rem' }}>➔</span>
+                            <span style={{ color: 'var(--color-success)' }}>{p.to}</span>
                           </div>
-                          <strong style={{ color: 'var(--color-danger)', fontSize: '1.1rem' }}>₹{p.amount.toLocaleString()}</strong>
-                        </div>
-                      ))}
-
-                      {myCredits.map((p, idx) => (
-                        <div key={`mycredit-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
-                          <div>
-                            <strong style={{ color: 'var(--text-primary)' }}>{p.from}</strong>{' '}
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>owes you</span>
-                          </div>
-                          <strong style={{ color: 'var(--color-success)', fontSize: '1.1rem' }}>₹{p.amount.toLocaleString()}</strong>
+                          <div className="settlement-amount" style={{ fontSize: '1rem' }}>₹{p.amount.toLocaleString()}</div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* Members Timeline List */}
-              <div className="card">
-                <h3 className="section-title">Active Members Timeline</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {currentGroup?.members?.map(m => (
-                    <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <span style={{ fontWeight: '500' }}>{m.name}</span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        Joined: {m.joined_at} {m.left_at ? `| Left: ${m.left_at}` : '(Current)'}
-                      </span>
+                {/* Quick Settle Converter Widget */}
+                <div className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>Convert & Pay</h3>
+                    <button className="btn btn-secondary" style={{ padding: 0, minWidth: 'auto', border: 'none', background: 'transparent' }}>⚙️</button>
+                  </div>
+                  
+                  <form onSubmit={handleQuickSettleSubmit}>
+                    <div className="convert-box">
+                      <div className="convert-row">
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>You Pay</span>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            className="convert-input" 
+                            placeholder="0.00" 
+                            value={quickSettleAmount}
+                            onChange={(e) => setQuickSettleAmount(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <span style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>INR (₹)</span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'center', margin: '-0.35rem 0' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid var(--border-color)', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.85rem' }}>⇅</div>
+                      </div>
+
+                      <div className="convert-row">
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>They Get</span>
+                          <span style={{ fontSize: '1rem', fontWeight: '800', padding: '0.2rem 0', color: 'var(--text-primary)' }}>
+                            ₹{quickSettleAmount ? parseFloat(quickSettleAmount).toLocaleString() : '0.00'}
+                          </span>
+                        </div>
+                        <select 
+                          className="convert-select"
+                          value={quickSettlePayeeId}
+                          onChange={(e) => setQuickSettlePayeeId(e.target.value)}
+                          required
+                        >
+                          <option value="">Select payee</option>
+                          {currentGroup?.members?.filter(m => m.user_id !== loggedInUser?.id).map(m => (
+                            <option key={m.id} value={m.user_id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {quickSettlePayeeId && (() => {
+                        const payeeObj = currentGroup?.members?.find(m => String(m.user_id) === quickSettlePayeeId);
+                        const owedAmt = payments.find(p => p.from === loggedInUser?.name && p.to === payeeObj?.name)?.amount || 0;
+                        return (
+                          <div className="convert-details">
+                            <div className="convert-details-row">
+                              <span>Total Outstanding Debt to them</span>
+                              <strong>₹{owedAmt.toLocaleString()}</strong>
+                            </div>
+                            <div className="convert-details-row">
+                              <span>Transaction Fee</span>
+                              <span style={{ color: 'var(--color-success)', fontWeight: '700' }}>Free (₹0.00)</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', background: '#5bc85c', border: 'none', color: '#fff', fontWeight: '800', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+                        Continue Settlement
+                      </button>
                     </div>
-                  ))}
+                  </form>
                 </div>
               </div>
             </div>
-
-            {/* 1b. DEBT MINIMIZATION VIEW */}
-            <div>
-              <div className="card">
-                <h2 className="section-title">Debt Settlement Minimization</h2>
-
-                {payments.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🎉</div>
-                    <p>All group balances are perfectly settled!</p>
-                  </div>
-                ) : (
-                  <div className="settlement-list">
-                    {payments.map((p, idx) => (
-                      <div key={idx} className="settlement-item">
-                        <div className="settlement-payer-payee">
-                          <span style={{ color: 'var(--color-danger)' }}>{p.from}</span>
-                          <span className="settlement-arrow">➔</span>
-                          <span style={{ color: 'var(--color-success)' }}>{p.to}</span>
-                        </div>
-                        <div className="settlement-amount">₹{p.amount.toLocaleString()}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          </>
         )}
 
         {/* 2. LEDGER TAB */}
@@ -1129,7 +1582,7 @@ export default function Home() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div>
-                <h2>Individual Balance Ledger</h2>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '750' }}>Individual Balance Ledger</h2>
               </div>
 
               {/* Selector */}
@@ -1139,7 +1592,7 @@ export default function Home() {
                   className="form-select"
                   value={auditUser}
                   onChange={(e) => setAuditUser(e.target.value)}
-                  style={{ width: '180px' }}
+                  style={{ width: '180px', backgroundColor: '#ffffff' }}
                 >
                   {currentGroup?.members?.map(m => (
                     <option key={m.id} value={m.name}>{m.name}</option>
@@ -1172,7 +1625,7 @@ export default function Home() {
                       <tr key={entry.id}>
                         <td>{entry.date}</td>
                         <td>
-                          <div style={{ fontWeight: '500' }}>{entry.description}</div>
+                          <div style={{ fontWeight: '600' }}>{entry.description}</div>
                           {entry.notes && (
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                               Note: {entry.notes}
@@ -1202,7 +1655,7 @@ export default function Home() {
                               : `₹0`
                           }
                         </td>
-                        <td style={{ fontWeight: '600' }} className={entry.runningBalance > 0 ? 'ledger-change-pos' : entry.runningBalance < 0 ? 'ledger-change-neg' : ''}>
+                        <td style={{ fontWeight: '700' }} className={entry.runningBalance > 0 ? 'ledger-change-pos' : entry.runningBalance < 0 ? 'ledger-change-neg' : ''}>
                           ₹{entry.runningBalance.toLocaleString()}
                         </td>
                       </tr>
@@ -1217,8 +1670,8 @@ export default function Home() {
         {/* 3. CSV IMPORT WIZARD */}
         {activeTab === 'import' && (
           <div className="card">
-            <h2>CSV Ingestion Wizard</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '750', marginBottom: '0.5rem' }}>CSV Ingestion Wizard</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
               Import `expenses_export.csv` directly. Our validator detects and surfaces 12+ types of deliberate anomalies so you can review and resolve them before saving.
             </p>
 
@@ -1259,299 +1712,297 @@ export default function Home() {
                     <input 
                       type="number"
                       className="form-input"
-                      style={{ width: '80px', padding: '0.35rem' }}
+                      style={{ width: '80px', padding: '0.35rem', borderRadius: '8px' }}
                       value={usdRate}
                       onChange={(e) => setUsdRate(parseFloat(e.target.value) || 1.0)}
                     />
                   </div>
                 </div>
 
-                <h3>Detected Data Anomalies ({parsedCSV.records.reduce((acc, r) => acc + r.anomalies.length, 0) + parsedCSV.duplicates.length} total)</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '750', marginBottom: '0.5rem' }}>Detected Data Anomalies ({parsedCSV.records.reduce((acc, r) => acc + r.anomalies.length, 0) + parsedCSV.duplicates.length} total)</h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
                   Please confirm policies and select resolutions where required.
                 </p>
 
-
-                      {/* Render Duplicate Groups */}
-                      {parsedCSV.duplicates.length > 0 && (
-                        <div style={{ marginBottom: '2rem' }}>
-                          <h3>Duplicate & Conflict Resolution</h3>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                            We detected overlapping events on the same day. Please select which records to retain.
-                          </p>
-                          <div className="anomaly-list" style={{ marginBottom: 0 }}>
-                            {parsedCSV.duplicates.map((dup) => {
-                              const key = `${dup.indexA}_${dup.indexB}`;
-                              return (
-                                <div key={`dup-${key}`} className="anomaly-card has-error">
-                                  <div className="anomaly-meta">
-                                    <span className="anomaly-title">Duplicate / Conflict Entry Conflict</span>
-                                    <span className="badge badge-danger">High Severity</span>
-                                  </div>
-                                  <p className="anomaly-details">{dup.description}</p>
-                                  
-                                  <div className="resolution-box">
-                                    <span className="form-label">Resolution Action:</span>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                        <input 
-                                          type="radio" 
-                                          name={`dup-choice-${key}`}
-                                          checked={selectedDuplicates[key] === 'keepA'}
-                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepA' }))}
-                                        />
-                                        <span>Keep Row {dup.rowA.rowNum} ("{dup.rowA.description}") and discard Row {dup.rowB.rowNum}</span>
-                                      </label>
-                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                        <input 
-                                          type="radio" 
-                                          name={`dup-choice-${key}`}
-                                          checked={selectedDuplicates[key] === 'keepB'}
-                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepB' }))}
-                                        />
-                                        <span>Keep Row {dup.rowB.rowNum} ("{dup.rowB.description}") and discard Row {dup.rowA.rowNum}</span>
-                                      </label>
-                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                        <input 
-                                          type="radio" 
-                                          name={`dup-choice-${key}`}
-                                          checked={selectedDuplicates[key] === 'keepBoth'}
-                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepBoth' }))}
-                                        />
-                                        <span>Keep both records as separate, distinct transactions</span>
-                                      </label>
-                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                        <input 
-                                          type="radio" 
-                                          name={`dup-choice-${key}`}
-                                          checked={selectedDuplicates[key] === 'deleteBoth'}
-                                          onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'deleteBoth' }))}
-                                        />
-                                        <span style={{ color: 'var(--color-danger)' }}>Discard/Delete both records</span>
-                                      </label>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                {/* Render Duplicate Groups */}
+                {parsedCSV.duplicates.length > 0 && (
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '750', marginBottom: '0.5rem' }}>Duplicate & Conflict Resolution</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                      We detected overlapping events on the same day. Please select which records to retain.
+                    </p>
+                    <div className="anomaly-list" style={{ marginBottom: 0 }}>
+                      {parsedCSV.duplicates.map((dup) => {
+                        const key = `${dup.indexA}_${dup.indexB}`;
+                        return (
+                          <div key={`dup-${key}`} className="anomaly-card has-error">
+                            <div className="anomaly-meta">
+                              <span className="anomaly-title">Duplicate / Conflict Entry Conflict</span>
+                              <span className="badge badge-danger">High Severity</span>
+                            </div>
+                            <p className="anomaly-details">{dup.description}</p>
+                            
+                            <div className="resolution-box">
+                              <span className="form-label" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resolution Action:</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                  <input 
+                                    type="radio" 
+                                    name={`dup-choice-${key}`}
+                                    checked={selectedDuplicates[key] === 'keepA'}
+                                    onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepA' }))}
+                                  />
+                                  <span>Keep Row {dup.rowA.rowNum} ("{dup.rowA.description}") and discard Row {dup.rowB.rowNum}</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                  <input 
+                                    type="radio" 
+                                    name={`dup-choice-${key}`}
+                                    checked={selectedDuplicates[key] === 'keepB'}
+                                    onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepB' }))}
+                                  />
+                                  <span>Keep Row {dup.rowB.rowNum} ("{dup.rowB.description}") and discard Row {dup.rowA.rowNum}</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                  <input 
+                                    type="radio" 
+                                    name={`dup-choice-${key}`}
+                                    checked={selectedDuplicates[key] === 'keepBoth'}
+                                    onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'keepBoth' }))}
+                                  />
+                                  <span>Keep both records as separate, distinct transactions</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                  <input 
+                                    type="radio" 
+                                    name={`dup-choice-${key}`}
+                                    checked={selectedDuplicates[key] === 'deleteBoth'}
+                                    onChange={() => setSelectedDuplicates(prev => ({ ...prev, [key]: 'deleteBoth' }))}
+                                  />
+                                  <span style={{ color: 'var(--color-danger)' }}>Discard/Delete both records</span>
+                                </label>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-                      <h3>CSV Rows & Target Group Destinations</h3>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-                        Review each expense destination group (auto-classified based on date/members) and resolve anomalies.
-                      </p>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '750', marginBottom: '0.5rem' }}>CSV Rows & Target Group Destinations</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                  Review each expense destination group (auto-classified based on date/members) and resolve anomalies.
+                </p>
 
-                      <div className="ledger-table-container" style={{ maxHeight: '600px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'rgba(0, 0, 0, 0.25)', padding: '0.5rem', marginBottom: '1.5rem' }}>
-                        <table className="ledger-table" style={{ width: '100%' }}>
-                          <thead>
-                            <tr>
-                              <th style={{ width: '60px' }}>Row</th>
-                              <th style={{ width: '100px' }}>Date</th>
-                              <th>Description</th>
-                              <th style={{ width: '120px' }}>Amount</th>
-                              <th style={{ width: '120px' }}>Payer</th>
-                              <th style={{ width: '220px' }}>Target Group Destination</th>
-                              <th style={{ width: '100px' }}>Status</th>
+                <div className="ledger-table-container" style={{ maxHeight: '500px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '0.5rem', marginBottom: '1.5rem', backgroundColor: '#ffffff' }}>
+                  <table className="ledger-table" style={{ width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '60px' }}>Row</th>
+                        <th style={{ width: '100px' }}>Date</th>
+                        <th>Description</th>
+                        <th style={{ width: '120px' }}>Amount</th>
+                        <th style={{ width: '120px' }}>Payer</th>
+                        <th style={{ width: '200px' }}>Target Group Destination</th>
+                        <th style={{ width: '100px' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedCSV.records.map((row) => {
+                        const skip = rowsToSkip.has(row.rowNum);
+                        const rowAnomalies = row.anomalies || [];
+                        const hasHigh = rowAnomalies.some(a => a.severity === 'HIGH');
+                        const hasMedium = rowAnomalies.some(a => a.severity === 'MEDIUM');
+                        const statusText = skip ? 'Skipped' : rowAnomalies.length > 0 ? `${rowAnomalies.length} Anom` : 'Clear';
+                        const statusBadge = skip 
+                          ? 'badge-secondary' 
+                          : rowAnomalies.length > 0 
+                            ? (hasHigh ? 'badge-danger' : 'badge-warning') 
+                            : 'badge-success';
+
+                        return (
+                          <React.Fragment key={row.rowNum}>
+                            <tr style={{ opacity: skip ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+                              <td style={{ fontWeight: '700', color: 'var(--color-primary)' }}>#{row.rowNum}</td>
+                              <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{row.date || row.dateRaw}</td>
+                              <td>
+                                <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{row.description}</div>
+                                {row.notes && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{row.notes}</div>}
+                              </td>
+                              <td>
+                                {row.currency !== 'INR' && (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>
+                                    ({row.amountRaw} {row.currencyRaw})
+                                  </span>
+                                )}
+                                ₹{row.amount}
+                              </td>
+                              <td>
+                                <span style={{ color: rowAnomalies.some(a => a.type === 'PAYER_MISSING') ? 'var(--color-danger)' : 'var(--text-primary)', fontWeight: '600' }}>
+                                  {row.paidByNormalized || row.paidByRaw || '(Missing)'}
+                                </span>
+                              </td>
+                              <td>
+                                <select
+                                  className="form-select"
+                                  style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', backgroundColor: '#ffffff', borderRadius: '8px' }}
+                                  value={resolutions[row.rowNum]?.groupDecision || ''}
+                                  onChange={(e) => updateResolution(row.rowNum, 'groupDecision', parseInt(e.target.value, 10))}
+                                  disabled={skip}
+                                >
+                                  {groups.map(g => (
+                                    <option key={g.id} value={g.id}>{g.name}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <span className={`badge ${statusBadge}`} style={{ fontSize: '0.7rem' }}>{statusText}</span>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {parsedCSV.records.map((row) => {
-                              const skip = rowsToSkip.has(row.rowNum);
-                              const rowAnomalies = row.anomalies || [];
-                              const hasHigh = rowAnomalies.some(a => a.severity === 'HIGH');
-                              const hasMedium = rowAnomalies.some(a => a.severity === 'MEDIUM');
-                              const statusText = skip ? 'Skipped' : rowAnomalies.length > 0 ? `${rowAnomalies.length} Anom` : 'Clear';
-                              const statusBadge = skip 
-                                ? 'badge-secondary' 
-                                : rowAnomalies.length > 0 
-                                  ? (hasHigh ? 'badge-danger' : 'badge-warning') 
-                                  : 'badge-success';
-
-                              return (
-                                <React.Fragment key={row.rowNum}>
-                                  <tr style={{ opacity: skip ? 0.35 : 1, transition: 'opacity 0.2s' }}>
-                                    <td style={{ fontWeight: '600', color: 'var(--color-primary)' }}>#{row.rowNum}</td>
-                                    <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{row.date || row.dateRaw}</td>
-                                    <td>
-                                      <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{row.description}</div>
-                                      {row.notes && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{row.notes}</div>}
-                                    </td>
-                                    <td>
-                                      {row.currency !== 'INR' && (
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>
-                                          ({row.amountRaw} {row.currencyRaw})
-                                        </span>
-                                      )}
-                                      ₹{row.amount}
-                                    </td>
-                                    <td>
-                                      <span style={{ color: rowAnomalies.some(a => a.type === 'PAYER_MISSING') ? 'var(--color-danger)' : 'var(--text-primary)' }}>
-                                        {row.paidByNormalized || row.paidByRaw || '(Missing)'}
-                                      </span>
-                                    </td>
-                                    <td>
-                                      <select
-                                        className="form-select"
-                                        style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', background: 'var(--bg-primary)' }}
-                                        value={resolutions[row.rowNum]?.groupDecision || ''}
-                                        onChange={(e) => updateResolution(row.rowNum, 'groupDecision', parseInt(e.target.value, 10))}
-                                        disabled={skip}
-                                      >
-                                        {groups.map(g => (
-                                          <option key={g.id} value={g.id}>{g.name}</option>
-                                        ))}
-                                      </select>
-                                    </td>
-                                    <td>
-                                      <span className={`badge ${statusBadge}`} style={{ fontSize: '0.7rem' }}>{statusText}</span>
-                                    </td>
-                                  </tr>
-                                  
-                                  {/* Render Inline Anomalies if any */}
-                                  {!skip && rowAnomalies.length > 0 && (
-                                    <tr>
-                                      <td colSpan="7" style={{ padding: '0.5rem 1rem 1rem 1rem', background: 'rgba(255, 255, 255, 0.01)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderLeft: '2px solid var(--color-primary)', paddingLeft: '1rem', margin: '0.25rem 0 0.5rem 0' }}>
-                                          {rowAnomalies.map((anom, aIdx) => {
-                                            const isHigh = anom.severity === 'HIGH';
-                                            const colorClass = isHigh ? 'var(--color-danger)' : anom.severity === 'MEDIUM' ? 'var(--color-warning)' : 'var(--color-primary)';
-                                            return (
-                                              <div key={aIdx} style={{ fontSize: '0.85rem' }}>
-                                                <div style={{ fontWeight: '600', color: colorClass }}>
-                                                  ⚠️ [{anom.severity}] {anom.type}: {anom.message}
-                                                </div>
-                                                
-                                                {/* Resolve options inline */}
-                                                <div style={{ marginTop: '0.25rem' }}>
-                                                  {anom.type === 'PAYER_MISSING' && (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                                                      <span className="form-label" style={{ margin: 0, fontSize: '0.8rem' }}>Choose Payer:</span>
-                                                      <select 
-                                                        className="form-select"
-                                                        style={{ width: '150px', padding: '0.25rem', fontSize: '0.8rem', background: 'var(--bg-primary)' }}
-                                                        value={resolutions[row.rowNum]?.payerDecision || ''}
-                                                        onChange={(e) => updateResolution(row.rowNum, 'payerDecision', e.target.value)}
-                                                      >
-                                                        <option value="">-- Choose Payer --</option>
-                                                        {systemUsers.map(u => (
-                                                          <option key={u.id} value={u.name}>{u.name}</option>
-                                                        ))}
-                                                      </select>
-                                                    </div>
-                                                  )}
-
-                                                  {anom.type === 'DATE_AMBIGUOUS' && (() => {
-                                                    const [yyyy, mm, dd] = row.date.split('-');
-                                                    const altDate = `${yyyy}-${dd}-${mm}`;
-                                                    return (
-                                                      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                          <input 
-                                                            type="radio" 
-                                                            name={`date-choice-${row.rowNum}`}
-                                                            checked={resolutions[row.rowNum]?.dateDecision === 'DD-MM-YYYY'}
-                                                            onChange={() => updateResolution(row.rowNum, 'dateDecision', 'DD-MM-YYYY')}
-                                                          />
-                                                          <span>{formatDatePretty(row.date)} (DD-MM-YYYY)</span>
-                                                        </label>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                          <input 
-                                                            type="radio" 
-                                                            name={`date-choice-${row.rowNum}`}
-                                                            checked={resolutions[row.rowNum]?.dateDecision === 'MM-DD-YYYY'}
-                                                            onChange={() => updateResolution(row.rowNum, 'dateDecision', 'MM-DD-YYYY')}
-                                                          />
-                                                          <span>{formatDatePretty(altDate)} (MM-DD-YYYY)</span>
-                                                        </label>
-                                                      </div>
-                                                    );
-                                                  })()}
-
-                                                  {anom.type === 'PERCENTAGE_SUM_ERROR' && (
-                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`pct-choice-${row.rowNum}`}
-                                                          checked={resolutions[row.rowNum]?.percentageDecision === 'normalize'}
-                                                          onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'normalize')}
-                                                        />
-                                                        <span>Auto-Normalize percentages to sum to 100% (Weighted)</span>
-                                                      </label>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`pct-choice-${row.rowNum}`}
-                                                          checked={resolutions[row.rowNum]?.percentageDecision === 'as_is'}
-                                                          onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'as_is')}
-                                                        />
-                                                        <span style={{ color: 'var(--color-danger)' }}>Import as-is</span>
-                                                      </label>
-                                                    </div>
-                                                  )}
-
-                                                  {anom.type === 'MEMBERSHIP_OUT_OF_BOUNDS' && (
-                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`mem-choice-${row.rowNum}-${anom.user}`}
-                                                          checked={resolutions[row.rowNum]?.membershipDecision === 'remove'}
-                                                          onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'remove')}
-                                                        />
-                                                        <span>Remove {anom.user} from split</span>
-                                                      </label>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`mem-choice-${row.rowNum}-${anom.user}`}
-                                                          checked={resolutions[row.rowNum]?.membershipDecision === 'keep'}
-                                                          onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'keep')}
-                                                        />
-                                                        <span>Keep {anom.user} in split</span>
-                                                      </label>
-                                                    </div>
-                                                  )}
-
-                                                  {anom.type === 'EXTERNAL_MEMBER_INCLUDED' && (
-                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`ext-choice-${row.rowNum}-${anom.user}`}
-                                                          checked={resolutions[row.rowNum]?.externalDecision === 'add_kabir'}
-                                                          onChange={() => updateResolution(row.rowNum, 'externalDecision', 'add_kabir')}
-                                                        />
-                                                        <span>Add Kabir as a temporary member</span>
-                                                      </label>
-                                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                        <input 
-                                                          type="radio" 
-                                                          name={`ext-choice-${row.rowNum}-${anom.user}`}
-                                                          checked={resolutions[row.rowNum]?.externalDecision === 'assign_dev'}
-                                                          onChange={() => updateResolution(row.rowNum, 'externalDecision', 'assign_dev')}
-                                                        />
-                                                        <span>Assign Kabir's share to Dev</span>
-                                                      </label>
-                                                    </div>
-                                                  )}
-                                                </div>
+                            
+                            {/* Render Inline Anomalies if any */}
+                            {!skip && rowAnomalies.length > 0 && (
+                              <tr>
+                                <td colSpan="7" style={{ padding: '0.5rem 1rem 1rem 1rem', background: '#f8fafc' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderLeft: '2.5px solid var(--color-primary)', paddingLeft: '1rem', margin: '0.25rem 0 0.5rem 0' }}>
+                                    {rowAnomalies.map((anom, aIdx) => {
+                                      const isHigh = anom.severity === 'HIGH';
+                                      const colorClass = isHigh ? 'var(--color-danger)' : anom.severity === 'MEDIUM' ? 'var(--color-warning)' : 'var(--color-primary)';
+                                      return (
+                                        <div key={aIdx} style={{ fontSize: '0.85rem' }}>
+                                          <div style={{ fontWeight: '700', color: colorClass }}>
+                                            ⚠️ [{anom.severity}] {anom.type}: {anom.message}
+                                          </div>
+                                          
+                                          {/* Resolve options inline */}
+                                          <div style={{ marginTop: '0.25rem' }}>
+                                            {anom.type === 'PAYER_MISSING' && (
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                                                <span className="form-label" style={{ margin: 0, fontSize: '0.8rem' }}>Choose Payer:</span>
+                                                <select 
+                                                  className="form-select"
+                                                  style={{ width: '150px', padding: '0.25rem', fontSize: '0.8rem', backgroundColor: '#ffffff', borderRadius: '6px' }}
+                                                  value={resolutions[row.rowNum]?.payerDecision || ''}
+                                                  onChange={(e) => updateResolution(row.rowNum, 'payerDecision', e.target.value)}
+                                                >
+                                                  <option value="">-- Choose Payer --</option>
+                                                  {systemUsers.map(u => (
+                                                    <option key={u.id} value={u.name}>{u.name}</option>
+                                                  ))}
+                                                </select>
                                               </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  )}
-                                </React.Fragment>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                                            )}
 
+                                            {anom.type === 'DATE_AMBIGUOUS' && (() => {
+                                              const [yyyy, mm, dd] = row.date.split('-');
+                                              const altDate = `${yyyy}-${dd}-${mm}`;
+                                              return (
+                                                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                    <input 
+                                                      type="radio" 
+                                                      name={`date-choice-${row.rowNum}`}
+                                                      checked={resolutions[row.rowNum]?.dateDecision === 'DD-MM-YYYY'}
+                                                      onChange={() => updateResolution(row.rowNum, 'dateDecision', 'DD-MM-YYYY')}
+                                                    />
+                                                    <span>{formatDatePretty(row.date)} (DD-MM-YYYY)</span>
+                                                  </label>
+                                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                    <input 
+                                                      type="radio" 
+                                                      name={`date-choice-${row.rowNum}`}
+                                                      checked={resolutions[row.rowNum]?.dateDecision === 'MM-DD-YYYY'}
+                                                      onChange={() => updateResolution(row.rowNum, 'dateDecision', 'MM-DD-YYYY')}
+                                                    />
+                                                    <span>{formatDatePretty(altDate)} (MM-DD-YYYY)</span>
+                                                  </label>
+                                                </div>
+                                              );
+                                            })()}
+
+                                            {anom.type === 'PERCENTAGE_SUM_ERROR' && (
+                                              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                  <input 
+                                                    type="radio" 
+                                                    name={`pct-choice-${row.rowNum}`}
+                                                    checked={resolutions[row.rowNum]?.percentageDecision === 'normalize'}
+                                                    onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'normalize')}
+                                                  />
+                                                  <span>Auto-Normalize percentages to sum to 100% (Weighted)</span>
+                                                </label>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                  <input 
+                                                    type="radio" 
+                                                    name={`pct-choice-${row.rowNum}`}
+                                                    checked={resolutions[row.rowNum]?.percentageDecision === 'as_is'}
+                                                    onChange={() => updateResolution(row.rowNum, 'percentageDecision', 'as_is')}
+                                                  />
+                                                  <span style={{ color: 'var(--color-danger)' }}>Import as-is</span>
+                                                </label>
+                                              </div>
+                                            )}
+
+                                            {anom.type === 'MEMBERSHIP_OUT_OF_BOUNDS' && (
+                                              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                  <input 
+                                                    type="radio" 
+                                                    name={`mem-choice-${row.rowNum}-${anom.user}`}
+                                                    checked={resolutions[row.rowNum]?.membershipDecision === 'remove'}
+                                                    onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'remove')}
+                                                  />
+                                                  <span>Remove {anom.user} from split</span>
+                                                </label>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                  <input 
+                                                    type="radio" 
+                                                    name={`mem-choice-${row.rowNum}-${anom.user}`}
+                                                    checked={resolutions[row.rowNum]?.membershipDecision === 'keep'}
+                                                    onChange={() => updateResolution(row.rowNum, 'membershipDecision', 'keep')}
+                                                  />
+                                                  <span>Keep {anom.user} in split</span>
+                                                </label>
+                                              </div>
+                                            )}
+
+                                            {anom.type === 'EXTERNAL_MEMBER_INCLUDED' && (
+                                              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                  <input 
+                                                    type="radio" 
+                                                    name={`ext-choice-${row.rowNum}-${anom.user}`}
+                                                    checked={resolutions[row.rowNum]?.externalDecision === 'add_kabir'}
+                                                    onChange={() => updateResolution(row.rowNum, 'externalDecision', 'add_kabir')}
+                                                  />
+                                                  <span>Add Kabir as a temporary member</span>
+                                                </label>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                  <input 
+                                                    type="radio" 
+                                                    name={`ext-choice-${row.rowNum}-${anom.user}`}
+                                                    checked={resolutions[row.rowNum]?.externalDecision === 'assign_dev'}
+                                                    onChange={() => updateResolution(row.rowNum, 'externalDecision', 'assign_dev')}
+                                                  />
+                                                  <span>Assign Kabir's share to Dev</span>
+                                                </label>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                   <button className="btn btn-secondary" onClick={() => setImportStep('upload')}>
@@ -1567,16 +2018,16 @@ export default function Home() {
             {/* Step 3: Success */}
             {importStep === 'success' && importReport && (
               <div>
-                <div style={{ textAlign: 'center', padding: '2rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '2rem' }}>
+                <div style={{ textAlign: 'center', padding: '2rem', background: '#eefdf4', borderRadius: '12px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
                   <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>✅</div>
                   <h3 style={{ color: 'var(--color-success)', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Import Succeeded!</h3>
                   <p>{importReport.message}</p>
                 </div>
 
                 <h3>Ingestion Report (Anomaly Resolution Log)</h3>
-                <div style={{ background: '#070a10', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem', maxHeight: '300px', overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
+                <div style={{ background: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem', maxHeight: '300px', overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem', color: '#cbd5e1', marginTop: '0.75rem', lineHeight: '1.6' }}>
                   {importReport.anomalies.map((line, idx) => (
-                    <div key={idx} style={{ marginBottom: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.2rem' }}>{line}</div>
+                    <div key={idx} style={{ marginBottom: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.2rem' }}>{line}</div>
                   ))}
                 </div>
 
@@ -1594,22 +2045,22 @@ export default function Home() {
         {activeTab === 'groups' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
             <div className="card">
-              <h2>Group Membership Timelines</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '750' }}>Group Membership Timelines</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
                 Define active membership date ranges for flatmates to ensure expenses are split correctly over time.
               </p>
 
               {groups.map(g => (
-                <div key={g.id} style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem', background: selectedGroupId === g.id ? 'rgba(20, 184, 166, 0.03)' : 'transparent' }}>
-                  <h4 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>{g.name}</h4>
+                <div key={g.id} style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem', background: selectedGroupId === g.id ? '#f0fdf4' : 'transparent', borderColor: selectedGroupId === g.id ? '#bbf7d0' : 'var(--border-color)' }}>
+                  <h4 style={{ fontSize: '1.05rem', marginBottom: '0.5rem', fontWeight: '700' }}>{g.name}</h4>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{g.description}</p>
                   
-                  <h5 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Members & Dates:</h5>
+                  <h5 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Members & Dates:</h5>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {g.members.map(m => (
-                      <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.01)', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.9rem' }}>
-                        <span>{m.name}</span>
-                        <span style={{ color: 'var(--color-primary)' }}>
+                      <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', background: '#ffffff', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.9rem', border: '1px solid var(--border-color)' }}>
+                        <span style={{ fontWeight: '600' }}>{m.name}</span>
+                        <span style={{ color: 'var(--color-primary)', fontWeight: '700' }}>
                           {m.joined_at} to {m.left_at || 'Present'}
                         </span>
                       </div>
@@ -1621,7 +2072,7 @@ export default function Home() {
 
             {/* Create Group Form */}
             <div className="card">
-              <h2>Create New Group</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '750' }}>Create New Group</h2>
               <form onSubmit={handleCreateGroup} style={{ marginTop: '1.5rem' }}>
                 <div className="form-group">
                   <label className="form-label">Group Name</label>
@@ -1653,7 +2104,7 @@ export default function Home() {
                       const membershipVal = newGroupMembers.find(m => m.user_id === user.id) || {};
                       
                       return (
-                        <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(0,0,0,0.1)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
+                        <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                           <input 
                             type="checkbox"
                             checked={isChecked}
@@ -1670,14 +2121,14 @@ export default function Home() {
                               }
                             }}
                           />
-                          <span style={{ width: '80px', fontWeight: '500' }}>{user.name}</span>
+                          <span style={{ width: '80px', fontWeight: '600', fontSize: '0.9rem' }}>{user.name}</span>
                           
                           {isChecked && (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flex: 1 }}>
                               <input 
                                 type="date" 
                                 className="form-input"
-                                style={{ padding: '0.25rem', fontSize: '0.8rem' }}
+                                style={{ padding: '0.25rem', fontSize: '0.8rem', borderRadius: '6px' }}
                                 value={membershipVal.joined_at || ''}
                                 onChange={(e) => {
                                   setNewGroupMembers(prev => prev.map(m => {
@@ -1690,7 +2141,7 @@ export default function Home() {
                               <input 
                                 type="date" 
                                 className="form-input"
-                                style={{ padding: '0.25rem', fontSize: '0.8rem' }}
+                                style={{ padding: '0.25rem', fontSize: '0.8rem', borderRadius: '6px' }}
                                 value={membershipVal.left_at || ''}
                                 onChange={(e) => {
                                   setNewGroupMembers(prev => prev.map(m => {
@@ -1708,7 +2159,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', padding: '0.75rem', borderRadius: '10px' }}>
                   Create Group
                 </button>
               </form>
@@ -1721,7 +2172,7 @@ export default function Home() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
             {/* Form 1: Add Expense */}
             <div className="card">
-              <h2>Log Shared Expense</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '750' }}>Log Shared Expense</h2>
               <form onSubmit={handleAddExpense} style={{ marginTop: '1.5rem' }}>
                 <div className="form-group">
                   <label className="form-label">Description</label>
@@ -1754,6 +2205,7 @@ export default function Home() {
                       className="form-select"
                       value={manualExpense.currency}
                       onChange={(e) => setManualExpense(prev => ({ ...prev, currency: e.target.value }))}
+                      style={{ backgroundColor: '#ffffff' }}
                     >
                       <option value="INR">INR (₹)</option>
                       <option value="USD">USD ($)</option>
@@ -1769,7 +2221,7 @@ export default function Home() {
                       className="form-input" 
                       value={loggedInUser?.name || ''} 
                       disabled 
-                      style={{ background: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-secondary)' }}
+                      style={{ background: '#f8fafc', cursor: 'not-allowed', color: 'var(--text-secondary)', fontWeight: '600' }}
                     />
                   </div>
                   <div className="form-group">
@@ -1790,6 +2242,7 @@ export default function Home() {
                     className="form-select"
                     value={manualExpense.split_type}
                     onChange={(e) => setManualExpense(prev => ({ ...prev, split_type: e.target.value, split_details: {} }))}
+                    style={{ backgroundColor: '#ffffff' }}
                   >
                     <option value="equal">Split Equally</option>
                     <option value="unequal">Unequal Amounts</option>
@@ -1816,13 +2269,13 @@ export default function Home() {
                               }
                             }}
                           />
-                          <span style={{ width: '80px' }}>{m.name}</span>
+                          <span style={{ width: '80px', fontWeight: '600', fontSize: '0.9rem' }}>{m.name}</span>
                           
                           {isChecked && manualExpense.split_type !== 'equal' && (
                             <input 
                               type="number"
                               className="form-input"
-                              style={{ width: '100px', padding: '0.25rem 0.5rem' }}
+                              style={{ width: '120px', padding: '0.25rem 0.5rem', borderRadius: '8px' }}
                               placeholder={
                                 manualExpense.split_type === 'unequal' ? 'Amount' : 
                                 manualExpense.split_type === 'percentage' ? '%' : 'Share'
@@ -1858,7 +2311,7 @@ export default function Home() {
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px' }}>
                   Add Shared Expense
                 </button>
               </form>
@@ -1866,7 +2319,7 @@ export default function Home() {
 
             {/* Form 2: Record Settlement */}
             <div className="card">
-              <h2>Record Payment / Settlement</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '750' }}>Record Payment / Settlement</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
                 Log peer-to-peer cash payments made to settle outstanding debts directly.
               </p>
@@ -1879,7 +2332,7 @@ export default function Home() {
                     className="form-input" 
                     value={loggedInUser?.name || ''} 
                     disabled 
-                    style={{ background: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-secondary)' }}
+                    style={{ background: '#f8fafc', cursor: 'not-allowed', color: 'var(--text-secondary)', fontWeight: '600' }}
                   />
                 </div>
 
@@ -1890,6 +2343,7 @@ export default function Home() {
                     value={manualSettlement.payee_id}
                     onChange={(e) => setManualSettlement(prev => ({ ...prev, payee_id: e.target.value }))}
                     required
+                    style={{ backgroundColor: '#ffffff' }}
                   >
                     <option value="">-- Select Creditor --</option>
                     {currentGroup?.members?.filter(m => m.user_id !== loggedInUser?.id).map(m => (
@@ -1917,6 +2371,7 @@ export default function Home() {
                       className="form-select"
                       value={manualSettlement.currency}
                       onChange={(e) => setManualSettlement(prev => ({ ...prev, currency: e.target.value }))}
+                      style={{ backgroundColor: '#ffffff' }}
                     >
                       <option value="INR">INR (₹)</option>
                       <option value="USD">USD ($)</option>
@@ -1946,7 +2401,7 @@ export default function Home() {
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', padding: '0.75rem', borderRadius: '10px' }}>
                   Record Payment
                 </button>
               </form>
