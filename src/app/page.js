@@ -1362,19 +1362,6 @@ export default function Home() {
                     })}
                   </div>
 
-                  {/* Spending Limits progress tracker */}
-                  <div className="spending-limits">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                      <span>Spending Limits</span>
-                      <span>{Math.round((ledger.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.totalAmount, 0) / 50000) * 100)}%</span>
-                    </div>
-                    <div className="limit-progress-bar">
-                      <div className="limit-progress-fill" style={{ width: `${Math.min(100, (ledger.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.totalAmount, 0) / 50000) * 100)}%` }}></div>
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                      ₹{ledger.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.totalAmount, 0).toLocaleString()} spent of ₹50,000.00
-                    </div>
-                  </div>
                 </div>
               </div>
 
