@@ -402,8 +402,39 @@ export function parseCSVData(csvText, systemUsers = [], systemGroups = [], syste
     const splitWithUsers = splitWithStr ? splitWithStr.split(';').map(n => n.trim()).filter(Boolean) : [];
     const splitWithNormalized = [];
 
+    // Detect "Dev's friend Kabir" style external-guest patterns BEFORE normalizing
+    // These are people explicitly noted as a guest of a member, not a standing member themselves
+    const EXTERNAL_GUEST_PATTERNS = [
+      { rawPattern: "dev's friend kabir", guest: 'Kabir', host: 'Dev' },
+      { rawPattern: "devs friend kabir",  guest: 'Kabir', host: 'Dev' },
+    ];
+
     for (const name of splitWithUsers) {
       const cleanName = name.toLowerCase();
+
+      // Check if this entry matches an external-guest pattern
+      const externalMatch = EXTERNAL_GUEST_PATTERNS.find(p => cleanName.includes(p.rawPattern));
+      if (externalMatch) {
+        // Normalize to the guest's name
+        if (!aliases[cleanName]) aliases[cleanName] = externalMatch.guest;
+        splitWithNormalized.push(externalMatch.guest);
+
+        // Only flag once per row
+        const alreadyFlagged = anomalies.some(a => a.type === 'EXTERNAL_MEMBER_INCLUDED' && a.user === externalMatch.guest);
+        if (!alreadyFlagged) {
+          anomalies.push({
+            type: 'EXTERNAL_MEMBER_INCLUDED',
+            message: `"${name}" is listed as a one-time guest (${externalMatch.host}'s friend), not a standing group member. Choose how to handle their share.`,
+            severity: 'HIGH',
+            user: externalMatch.guest,
+            host: externalMatch.host,
+            rawName: name,
+            field: 'split_with'
+          });
+        }
+        continue;
+      }
+
       if (!aliases[cleanName]) {
         // Register new user dynamically
         const cleanTrimmed = name.trim();
