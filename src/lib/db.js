@@ -1,7 +1,11 @@
-import Database from 'better-sqlite3';
+// better-sqlite3 is a native binary — do NOT import it at the top level.
+// Vercel (serverless/Postgres) must never touch it. We use createRequire to
+// lazy-load it only when DATABASE_URL is absent (local SQLite mode).
 import pg from 'pg';
 import path from 'path';
 import { AsyncLocalStorage } from 'async_hooks';
+import { createRequire } from 'module';
+const _require = createRequire(import.meta.url);
 
 // Singleton pattern to prevent multiple open connections during Next.js hot-reloading in development
 let dbInstance = global.dbInstance || null;
@@ -249,6 +253,8 @@ export function getDb() {
     });
     dbInstance = new UnifiedDb('postgres', pool, null);
   } else {
+    // Synchronous lazy-require so Vercel's bundler never statically touches better-sqlite3
+    const Database = _require('better-sqlite3');
     const dbPath = path.resolve(process.cwd(), 'database.sqlite');
     const sqliteDb = new Database(dbPath);
     sqliteDb.pragma('foreign_keys = ON');
