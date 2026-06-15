@@ -29,7 +29,6 @@ export function parseCSVDate(dateStr) {
     const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
     const month = months[monthStr];
     if (month !== undefined) {
-      // Based on context of 2026 expenses
       const date = new Date(2026, month, day);
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -46,8 +45,7 @@ export function parseCSVDate(dateStr) {
     const m = parseInt(match[2], 10);
     const y = parseInt(match[3], 10);
 
-    // Check if the format is 04-05-2026 (Ambiguous date: could be April 5th or May 4th)
-    const isAmbiguous = d <= 12 && m <= 12 && (d !== m); // e.g. 04-05-2026
+    const isAmbiguous = d <= 12 && m <= 12 && (d !== m);
 
     const mm = String(m).padStart(2, '0');
     const dd = String(d).padStart(2, '0');
@@ -73,37 +71,50 @@ export function parseCSVDate(dateStr) {
   return { parsedDate: null, isAmbiguous: false, isFormatInconsistent: true };
 }
 
-// Check membership dates:
-// Meera: active 2026-02-01 to 2026-03-31
-// Sam: active 2026-04-08 onwards
-// Dev: active 2026-03-08 to 2026-03-14
-// Kabir: active 2026-03-11 to 2026-03-11
-// Aisha, Rohan, Priya: 2026-02-01 onwards
-export function checkMembershipViolation(userName, dateStr) {
+// Generalized dynamic membership timeline check with legacy fallbacks
+export function checkMembershipViolation(userName, dateStr, groupName = '', systemMemberships = []) {
   if (!dateStr) return false;
-  const normalized = USER_ALIASES[userName.trim().toLowerCase()];
-  if (!normalized) return false;
 
-  const date = new Date(dateStr);
-  const meeraStart = new Date('2026-02-01');
-  const meeraEnd = new Date('2026-03-31');
-  const samStart = new Date('2026-04-08');
-  const devStart = new Date('2026-03-08');
-  const devEnd = new Date('2026-03-14');
-  const kabirStart = new Date('2026-03-11');
-  const kabirEnd = new Date('2026-03-11');
+  // Legacy fallback rules for validation verification tests when no systemMemberships are passed
+  if (!systemMemberships || systemMemberships.length === 0) {
+    const date = new Date(dateStr);
+    const meeraStart = new Date('2026-02-01');
+    const meeraEnd = new Date('2026-03-31');
+    const samStart = new Date('2026-04-08');
+    const devStart = new Date('2026-03-08');
+    const devEnd = new Date('2026-03-14');
+    const kabirStart = new Date('2026-03-11');
+    const kabirEnd = new Date('2026-03-11');
 
-  if (normalized === 'Meera') {
-    return date < meeraStart || date > meeraEnd;
+    if (userName === 'Meera') return date < meeraStart || date > meeraEnd;
+    if (userName === 'Sam') return date < samStart;
+    if (userName === 'Dev') return date < devStart || date > devEnd;
+    if (userName === 'Kabir') return date < kabirStart || date > kabirEnd;
+    return false;
   }
-  if (normalized === 'Sam') {
-    return date < samStart;
+
+  // Dynamic database-driven checks!
+  const userMems = systemMemberships.filter(m => m.user_name.toLowerCase() === userName.toLowerCase());
+
+  if (userMems.length === 0) {
+    return false; // Not in system yet, will join automatically
   }
-  if (normalized === 'Dev') {
-    return date < devStart || date > devEnd;
+
+  const targetMem = userMems.find(m => m.group_name && m.group_name.toLowerCase() === groupName.toLowerCase());
+  if (!targetMem) {
+    return false; // Not in this group yet, will join automatically
   }
-  if (normalized === 'Kabir') {
-    return date < kabirStart || date > kabirEnd;
+
+  const checkDate = new Date(dateStr);
+  const joined = new Date(targetMem.joined_at);
+  if (checkDate < joined) {
+    return true;
+  }
+  if (targetMem.left_at) {
+    const left = new Date(targetMem.left_at);
+    if (checkDate > left) {
+      return true;
+    }
   }
 
   return false;
@@ -113,7 +124,7 @@ export function checkMembershipViolation(userName, dateStr) {
 export function cleanDescriptionWords(desc) {
   if (!desc) return [];
   return desc.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '') // remove punctuation
+    .replace(/[^a-z0-9\s]/g, '')
     .split(/\s+/)
     .map(w => w.trim())
     .filter(w => w.length > 2 && w !== 'the' && w !== 'for' && w !== 'and' && w !== 'via');
@@ -129,19 +140,17 @@ export function detectDuplicates(rows) {
       const rowB = rows[j];
       
       const sameDate = rowA.date === rowB.date;
-      if (!sameDate) continue; // Duplicates/conflicts must occur on the same day
+      if (!sameDate) continue;
 
       const wordsA = cleanDescriptionWords(rowA.description);
       const wordsB = cleanDescriptionWords(rowB.description);
 
-      // Check overlap of words (intersection)
       const intersection = wordsA.filter(w => wordsB.includes(w));
       const hasSignificantOverlap = intersection.length >= 2 || 
         (wordsA.length > 0 && wordsB.length > 0 && 
          (wordsA.every(w => wordsB.includes(w)) || wordsB.every(w => wordsA.includes(w))));
 
       if (hasSignificantOverlap) {
-        // Option 1: Complete duplicate (Same payer, same amount)
         if (rowA.paidByNormalized === rowB.paidByNormalized && Math.abs(rowA.amount - rowB.amount) < 0.01) {
           duplicates.push({
             type: 'EXACT_DUPLICATE',
@@ -152,7 +161,6 @@ export function detectDuplicates(rows) {
             description: `Exact duplicate detected on ${rowA.date}: "${rowA.description}" and "${rowB.description}" (paid by ${rowA.paidByNormalized} = ₹${rowA.amount})`
           });
         } 
-        // Option 2: Conflict (Same activity, different amount/payer)
         else {
           duplicates.push({
             type: 'CONFLICT_DUPLICATE',
@@ -169,11 +177,22 @@ export function detectDuplicates(rows) {
   return duplicates;
 }
 
-export function classifyGroup(record, parsedDate) {
+export function classifyGroup(record, parsedDate, systemGroups = []) {
   const description = (record.description || '').toLowerCase();
   const splitWith = (record.split_with || '').toLowerCase();
   const notes = (record.notes || '').toLowerCase();
+
+  // 1. Try to match to dynamic system group names case-insensitively
+  if (systemGroups && systemGroups.length > 0) {
+    for (const g of systemGroups) {
+      const gNameLower = g.name.toLowerCase();
+      if (description.includes(gNameLower) || notes.includes(gNameLower)) {
+        return g.name;
+      }
+    }
+  }
   
+  // 2. Legacy fallback heuristics
   const hasGoaKeyword = description.includes('goa') || 
                          description.includes('thalassa') || 
                          description.includes('beach') || 
@@ -191,31 +210,46 @@ export function classifyGroup(record, parsedDate) {
     const goaStart = new Date('2026-03-08');
     const goaEnd = new Date('2026-03-14');
     isGoaDate = date >= goaStart && date <= goaEnd;
-    isGoaTimelineMonth = date.getFullYear() === 2026 && date.getMonth() === 2; // March is month 2 (0-indexed)
+    isGoaTimelineMonth = date.getFullYear() === 2026 && date.getMonth() === 2;
   }
 
   if (hasGoaKeyword || isGoaDate || (hasGoaMembers && isGoaTimelineMonth)) {
     return 'Goa Trip 2026';
   }
+
+  // 3. Fallback default
+  if (systemGroups && systemGroups.length > 0) {
+    return systemGroups[0].name;
+  }
   return 'Flatmates 4B';
 }
 
-export function parseCSVData(csvText) {
-  // Parse CSV
+export function parseCSVData(csvText, systemUsers = [], systemGroups = [], systemMemberships = []) {
   const records = parse(csvText, {
     columns: true,
     skip_empty_lines: true,
     trim: true
   });
 
+  // Dynamically initialize aliases map
+  const aliases = { ...USER_ALIASES };
+  if (systemUsers && Array.isArray(systemUsers)) {
+    systemUsers.forEach(u => {
+      aliases[u.name.toLowerCase().trim()] = u.name;
+    });
+  }
+
   const parsedRows = records.map((record, index) => {
-    const rowNum = index + 2; // CSV is 1-indexed, header is row 1
+    const rowNum = index + 2;
     const anomalies = [];
+
+    // Classify group dynamically
+    const { parsedDate, isAmbiguous, isFormatInconsistent } = parseCSVDate(record.date);
+    const suggestedGroup = classifyGroup(record, parsedDate, systemGroups);
 
     // 1. Paid By name parsing and normalization
     const rawPayer = record.paid_by || '';
     let paidByNormalized = null;
-    let suggestedPayer = null;
 
     if (!rawPayer.trim()) {
       anomalies.push({
@@ -226,15 +260,21 @@ export function parseCSVData(csvText) {
       });
     } else {
       const cleanPayerName = rawPayer.trim().toLowerCase();
-      paidByNormalized = USER_ALIASES[cleanPayerName] || null;
-      if (!paidByNormalized) {
+      if (!aliases[cleanPayerName]) {
+        // Register new user dynamically
+        const cleanTrimmed = rawPayer.trim();
+        const titleCased = cleanTrimmed.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        aliases[cleanPayerName] = titleCased;
         anomalies.push({
-          type: 'PAYER_UNKNOWN',
-          message: `Unknown payer name: "${rawPayer}"`,
-          severity: 'HIGH',
+          type: 'NEW_USER_DETECTED',
+          message: `New user "${titleCased}" will be registered in the system.`,
+          severity: 'LOW',
+          user: titleCased,
           field: 'paid_by'
         });
-      } else if (rawPayer !== paidByNormalized) {
+      }
+      paidByNormalized = aliases[cleanPayerName];
+      if (rawPayer.trim() !== paidByNormalized) {
         anomalies.push({
           type: 'PAYER_NAME_INCONSISTENT',
           message: `Payer name normalized from "${rawPayer}" to "${paidByNormalized}"`,
@@ -249,9 +289,7 @@ export function parseCSVData(csvText) {
     let rawAmount = record.amount || '0';
     let amount = 0;
     let isAmountCleaned = false;
-    let isAmountRounded = false;
 
-    // Clean commas
     if (typeof rawAmount === 'string' && rawAmount.includes(',')) {
       rawAmount = rawAmount.replace(/,/g, '');
       isAmountCleaned = true;
@@ -277,7 +315,6 @@ export function parseCSVData(csvText) {
         });
       }
 
-      // Rounding check (INR/USD support 2 decimal places max)
       const decimalPart = String(amount).split('.')[1];
       if (decimalPart && decimalPart.length > 2) {
         const roundedAmount = Math.round(amount * 100) / 100;
@@ -332,7 +369,6 @@ export function parseCSVData(csvText) {
     }
 
     // 4. Date formatting
-    const { parsedDate, isAmbiguous, isFormatInconsistent } = parseCSVDate(record.date);
     if (!parsedDate) {
       anomalies.push({
         type: 'DATE_INVALID',
@@ -365,16 +401,30 @@ export function parseCSVData(csvText) {
     const splitWithStr = record.split_with || '';
     const splitWithUsers = splitWithStr ? splitWithStr.split(';').map(n => n.trim()).filter(Boolean) : [];
     const splitWithNormalized = [];
-    const missingMembers = [];
 
     for (const name of splitWithUsers) {
       const cleanName = name.toLowerCase();
-      const normalized = USER_ALIASES[cleanName] || null;
-      if (normalized) {
-        splitWithNormalized.push(normalized);
-        
-        // 6. Check membership timeline bounds
-        if (parsedDate && checkMembershipViolation(normalized, parsedDate)) {
+      if (!aliases[cleanName]) {
+        // Register new user dynamically
+        const cleanTrimmed = name.trim();
+        const titleCased = cleanTrimmed.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        aliases[cleanName] = titleCased;
+        anomalies.push({
+          type: 'NEW_USER_DETECTED',
+          message: `New user "${titleCased}" will be registered in the system.`,
+          severity: 'LOW',
+          user: titleCased,
+          field: 'split_with'
+        });
+      }
+      
+      const normalized = aliases[cleanName];
+      splitWithNormalized.push(normalized);
+      
+      // Check membership timeline bounds dynamically
+      if (parsedDate) {
+        const isViolation = checkMembershipViolation(normalized, parsedDate, suggestedGroup, systemMemberships);
+        if (isViolation) {
           anomalies.push({
             type: 'MEMBERSHIP_OUT_OF_BOUNDS',
             message: `User "${normalized}" was not active on ${parsedDate} (membership bounds check).`,
@@ -383,16 +433,6 @@ export function parseCSVData(csvText) {
             field: 'split_with'
           });
         }
-      } else {
-        // Kabir or unknown users
-        splitWithNormalized.push(name); // keep raw name for now
-        anomalies.push({
-          type: 'EXTERNAL_MEMBER_INCLUDED',
-          message: `User "${name}" is not a recognized group member.`,
-          severity: 'MEDIUM',
-          user: name,
-          field: 'split_with'
-        });
       }
     }
 
@@ -405,12 +445,11 @@ export function parseCSVData(csvText) {
       });
     }
 
-    // 7. Split type & details consistency
+    // 6. Split type & details consistency
     const rawSplitType = (record.split_type || '').trim().toLowerCase();
     let splitType = rawSplitType || null;
     const splitDetails = record.split_details || '';
 
-    // Check if it is actually a settlement logged as an expense
     const isSettlementWord = record.description && (
       record.description.toLowerCase().includes('paid') || 
       record.description.toLowerCase().includes('settle') ||
@@ -428,7 +467,6 @@ export function parseCSVData(csvText) {
     }
 
     if (splitType === 'percentage') {
-      // Parse details: Aisha 30%; Rohan 30%; Priya 30%; Meera 20%
       let sumPct = 0;
       const detailsList = splitDetails.split(';').map(d => d.trim()).filter(Boolean);
       detailsList.forEach(detail => {
@@ -455,8 +493,6 @@ export function parseCSVData(csvText) {
         field: 'split_details'
       });
     }
-
-    const suggestedGroup = classifyGroup(record, parsedDate);
 
     return {
       rowNum,

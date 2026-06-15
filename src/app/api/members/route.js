@@ -11,23 +11,24 @@ export async function POST(request) {
     }
 
     const db = getDb();
+    await db.initPromise;
 
     // Check if membership already exists
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT id FROM group_memberships 
       WHERE group_id = ? AND user_id = ?
     `).get(group_id, user_id);
 
     if (existing) {
       // Update
-      db.prepare(`
+      await db.prepare(`
         UPDATE group_memberships 
         SET joined_at = ?, left_at = ?
         WHERE id = ?
       `).run(joined_at, left_at || null, existing.id);
     } else {
       // Insert new
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO group_memberships (group_id, user_id, joined_at, left_at)
         VALUES (?, ?, ?, ?)
       `).run(group_id, user_id, joined_at, left_at || null);

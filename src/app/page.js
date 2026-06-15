@@ -15,6 +15,73 @@ const USER_ALIASES = {
   "dev's friend kabir": 'Kabir'
 };
 
+// SVG Icons
+const IconDashboard = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', flexShrink: 0 }}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+);
+const IconLedger = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', flexShrink: 0 }}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+);
+const IconImport = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', flexShrink: 0 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+);
+const IconGroups = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', flexShrink: 0 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+);
+const IconManual = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', flexShrink: 0 }}><rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>
+);
+const IconLogout = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+);
+const IconUser = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', display: 'inline-block', verticalAlign: 'middle' }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+);
+const IconSettings = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+);
+const IconHelp = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+);
+const IconWarning = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', color: '#d97706', flexShrink: 0 }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+);
+const IconSuccess = () => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '0.5rem' }}><polyline points="20 6 9 17 4 12" /></svg>
+);
+const IconSuccessSmall = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '4px' }}><polyline points="20 6 9 17 4 12" /></svg>
+);
+const IconCrossSmall = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '4px' }}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+);
+const IconCelebrate = () => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '0.25rem' }}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34M12 2a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z" /></svg>
+);
+const IconArrowRight = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '4px', display: 'inline-block', verticalAlign: 'middle' }}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+);
+const IconPlus = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+);
+
+// Category Icons
+const IconCatRent = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+);
+const IconCatFood = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a9 9 0 0 0-9 9h18a9 9 0 0 0-9-9z"/><path d="M3 11v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M5 16v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1"/><path d="M8 11v2"/><path d="M12 11v2"/><path d="M16 11v2"/></svg>
+);
+const IconCatUtilities = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+);
+const IconCatTravel = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+);
+const IconCatDefault = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8" /><rect x="1" y="3" width="22" height="5" /><line x1="10" y1="12" x2="14" y2="12" /></svg>
+);
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [groups, setGroups] = useState([]);
@@ -27,6 +94,7 @@ export default function Home() {
   const [payments, setPayments] = useState([]);
   const [auditUser, setAuditUser] = useState('');
   const [ledger, setLedger] = useState([]);
+  const [groupTransactions, setGroupTransactions] = useState([]);
 
   // Import wizard state
   const [importStep, setImportStep] = useState('upload'); // upload, resolve, success
@@ -84,6 +152,53 @@ export default function Home() {
       }
     } catch (e) {
       console.error('Failed to load initial data', e);
+    }
+  };
+
+  const handleToggleMembership = async (group, action) => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const myMembership = group.members.find(m => m.user_id === loggedInUser?.id);
+      
+      let bodyData = {};
+      if (action === 'join') {
+        bodyData = {
+          group_id: group.id,
+          user_id: loggedInUser.id,
+          joined_at: todayStr,
+          left_at: null
+        };
+      } else if (action === 'leave') {
+        bodyData = {
+          group_id: group.id,
+          user_id: loggedInUser.id,
+          joined_at: myMembership ? myMembership.joined_at : todayStr,
+          left_at: todayStr
+        };
+      } else if (action === 'rejoin') {
+        bodyData = {
+          group_id: group.id,
+          user_id: loggedInUser.id,
+          joined_at: todayStr,
+          left_at: null
+        };
+      }
+
+      const res = await fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadInitialData();
+        await fetchBalances();
+        alert(`Successfully ${action === 'join' ? 'joined' : action === 'leave' ? 'left' : 'rejoined'} group!`);
+      } else {
+        alert('Action failed: ' + data.error);
+      }
+    } catch (e) {
+      alert('Error toggling membership: ' + e.message);
     }
   };
 
@@ -209,6 +324,7 @@ export default function Home() {
         setBalances(data.balances || {});
         setPayments(data.payments || []);
         setLedger(data.ledger || []);
+        setGroupTransactions(data.groupTransactions || []);
       }
     } catch (e) {
       console.error('Failed to fetch balances', e);
@@ -882,8 +998,8 @@ export default function Home() {
                 style={{ justifyContent: 'space-between', padding: '0.85rem 1.25rem', borderRadius: '12px', display: 'flex', width: '100%', alignItems: 'center' }}
                 onClick={() => handleLogin(user)}
               >
-                <span style={{ fontWeight: '600' }}>👤 {user.name}</span>
-                <span style={{ color: 'var(--color-primary)', fontWeight: '700', fontSize: '0.85rem' }}>Enter Fynix ➔</span>
+                <span style={{ fontWeight: '600', display: 'flex', alignItems: 'center' }}><IconUser /> {user.name}</span>
+                <span style={{ color: 'var(--color-primary)', fontWeight: '700', fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>Enter Fynix <IconArrowRight /></span>
               </button>
             ))}
           </div>
@@ -983,11 +1099,11 @@ export default function Home() {
 
   const getCategoryIcon = (cat) => {
     switch (cat) {
-      case 'Rent': return '🏠';
-      case 'Food & Dining': return '🍔';
-      case 'Utilities': return '⚡';
-      case 'Travel': return '✈️';
-      default: return '📦';
+      case 'Rent': return <IconCatRent />;
+      case 'Food & Dining': return <IconCatFood />;
+      case 'Utilities': return <IconCatUtilities />;
+      case 'Travel': return <IconCatTravel />;
+      default: return <IconCatDefault />;
     }
   };
 
@@ -1066,8 +1182,8 @@ export default function Home() {
     if (split_type === 'percentage') {
       const isOk = Math.abs(sum - 100) < 0.01;
       return (
-        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: isOk ? 'var(--color-success)' : 'var(--color-danger)' }}>
-          <strong>Total:</strong> {sum}% / 100% {isOk ? '✅' : '❌'}
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: isOk ? 'var(--color-success)' : 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <strong>Total:</strong> {sum}% / 100% {isOk ? <IconSuccessSmall /> : <IconCrossSmall />}
         </div>
       );
     }
@@ -1076,16 +1192,16 @@ export default function Home() {
       const target = parseFloat(amount || 0);
       const isOk = Math.abs(sum - target) < 0.01;
       return (
-        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: isOk ? 'var(--color-success)' : 'var(--color-danger)' }}>
-          <strong>Total Distributed:</strong> ₹{sum.toLocaleString()} / ₹{target.toLocaleString()} {isOk ? '✅' : '❌'}
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: isOk ? 'var(--color-success)' : 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <strong>Total Distributed:</strong> ₹{sum.toLocaleString()} / ₹{target.toLocaleString()} {isOk ? <IconSuccessSmall /> : <IconCrossSmall />}
         </div>
       );
     }
 
     if (split_type === 'share') {
       return (
-        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: sum > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-          <strong>Total Shares:</strong> {sum} {sum > 0 ? '✅' : '❌'}
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: sum > 0 ? 'var(--color-success)' : 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <strong>Total Shares:</strong> {sum} {sum > 0 ? <IconSuccessSmall /> : <IconCrossSmall />}
         </div>
       );
     }
@@ -1114,28 +1230,28 @@ export default function Home() {
                 <span className="sidebar-profile-name">{loggedInUser.name}</span>
                 <span className="sidebar-profile-role">Personal Account</span>
               </div>
-              <button onClick={handleLogout} className="btn-logout" title="Log Out">
-                🚪
+              <button onClick={handleLogout} className="btn-logout" title="Log Out" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IconLogout />
               </button>
             </div>
           )}
 
           <div className="sidebar-section-title">Main Menu</div>
           <div className="sidebar-menu">
-            <button className={`sidebar-menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-              🏠 Dashboard
+            <button className={`sidebar-menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')} style={{ display: 'flex', alignItems: 'center' }}>
+              <IconDashboard /> Dashboard
             </button>
-            <button className={`sidebar-menu-item ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
-              📑 Audit Ledger
+            <button className={`sidebar-menu-item ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')} style={{ display: 'flex', alignItems: 'center' }}>
+              <IconLedger /> Audit Ledger
             </button>
-            <button className={`sidebar-menu-item ${activeTab === 'import' ? 'active' : ''}`} onClick={() => setActiveTab('import')}>
-              📥 CSV Ingestion Wizard
+            <button className={`sidebar-menu-item ${activeTab === 'import' ? 'active' : ''}`} onClick={() => setActiveTab('import')} style={{ display: 'flex', alignItems: 'center' }}>
+              <IconImport /> CSV Ingestion Wizard
             </button>
-            <button className={`sidebar-menu-item ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')}>
-              👥 Group Timelines
+            <button className={`sidebar-menu-item ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')} style={{ display: 'flex', alignItems: 'center' }}>
+              <IconGroups /> Group Timelines
             </button>
-            <button className={`sidebar-menu-item ${activeTab === 'manual' ? 'active' : ''}`} onClick={() => setActiveTab('manual')}>
-              💳 Log Expense / Pay
+            <button className={`sidebar-menu-item ${activeTab === 'manual' ? 'active' : ''}`} onClick={() => setActiveTab('manual')} style={{ display: 'flex', alignItems: 'center' }}>
+              <IconManual /> Log Expense / Pay
             </button>
           </div>
         </div>
@@ -1187,8 +1303,8 @@ export default function Home() {
 
             {/* Settings & Help Icon shortcuts */}
             <div style={{ display: 'flex', gap: '0.45rem' }}>
-              <button className="btn btn-secondary" style={{ width: '38px', height: '38px', padding: 0 }} title="Settings" onClick={() => setActiveTab('groups')}>⚙️</button>
-              <button className="btn btn-secondary" style={{ width: '38px', height: '38px', padding: 0 }} title="Help Center" onClick={() => alert("Need help? Refer to instructions in README.md")}>❓</button>
+              <button className="btn btn-secondary" style={{ width: '38px', height: '38px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Settings" onClick={() => setActiveTab('groups')}><IconSettings /></button>
+              <button className="btn btn-secondary" style={{ width: '38px', height: '38px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Help Center" onClick={() => alert("Need help? Refer to instructions in README.md")}><IconHelp /></button>
             </div>
           </div>
         </div>
@@ -1208,8 +1324,8 @@ export default function Home() {
                   Your total balance estimate in {currentGroup?.name || 'Group'} at {new Date().toISOString().split('T')[0]} 12:20
                 </div>
               </div>
-              <button className="btn btn-primary" style={{ background: '#5bc85c', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '10px', fontWeight: 'bold' }} onClick={() => setActiveTab('manual')}>
-                🟢 Manage Balance
+              <button className="btn btn-primary" style={{ background: '#5bc85c', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => setActiveTab('manual')}>
+                <IconPlus /> Manage Balance
               </button>
             </div>
 
@@ -1220,7 +1336,7 @@ export default function Home() {
                 <div className="card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>{currentGroup?.name || 'Your Cards'}</h3>
-                    <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: 'auto' }} onClick={() => setActiveTab('groups')}>+</button>
+                    <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setActiveTab('groups')}><IconPlus style={{ marginRight: 0 }} /></button>
                   </div>
                   <div className="cards-container">
                     {currentGroup?.members?.map((m, idx) => {
@@ -1234,9 +1350,6 @@ export default function Home() {
                               <span>{m.name}</span>
                             </div>
                             <div className="bank-card-chip"></div>
-                          </div>
-                          <div className="bank-card-number">
-                            •••• •••• •••• {String(m.user_id).padStart(4, '0')}
                           </div>
                           <div className="bank-card-footer">
                             <span className="bank-card-name">{m.name === loggedInUser?.name ? 'Personal Account' : 'Group Member'}</span>
@@ -1271,13 +1384,10 @@ export default function Home() {
                 <div className="card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>Transactions</h3>
-                    <select className="form-select" style={{ width: '110px', padding: '0.25rem', fontSize: '0.75rem', height: 'auto', border: 'none', background: 'transparent', fontWeight: 'bold' }} disabled>
-                      <option>This Month</option>
-                    </select>
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {ledger.slice(-5).reverse().map((entry, idx) => {
+                    {groupTransactions.slice(-5).reverse().map((entry, idx) => {
                       const isExpense = entry.type === 'expense';
                       const category = getCategory(entry.description);
                       const icon = getCategoryIcon(category);
@@ -1293,15 +1403,15 @@ export default function Home() {
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontWeight: '800', fontSize: '0.85rem', color: entry.netChange >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                              {entry.netChange >= 0 ? '+' : '-'}₹{Math.abs(entry.netChange).toLocaleString()}
+                            <div style={{ fontWeight: '800', fontSize: '0.85rem', color: isExpense ? 'var(--text-primary)' : 'var(--color-success)' }}>
+                              {isExpense ? '-' : '+'}₹{entry.totalAmount.toLocaleString()}
                             </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{entry.date}</div>
                           </div>
                         </div>
                       );
                     })}
-                    {ledger.length === 0 && (
+                    {groupTransactions.length === 0 && (
                       <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No transactions recorded.</div>
                     )}
                   </div>
@@ -1311,9 +1421,6 @@ export default function Home() {
                 <div className="card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>All Expenses</h3>
-                    <select className="form-select" style={{ width: '110px', padding: '0.25rem', fontSize: '0.75rem', height: 'auto', border: 'none', background: 'transparent', fontWeight: 'bold' }} disabled>
-                      <option>This Month</option>
-                    </select>
                   </div>
 
                   {(() => {
@@ -1382,16 +1489,16 @@ export default function Home() {
                   <h3 className="section-title">Debt Settlement Minimization</h3>
                   {payments.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🎉</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.25rem' }}><IconCelebrate /></div>
                       <p>All group balances are perfectly settled!</p>
                     </div>
                   ) : (
                     <div className="settlement-list" style={{ gap: '0.5rem' }}>
                       {payments.map((p, idx) => (
                         <div key={idx} className="settlement-item" style={{ padding: '0.75rem 1rem', borderRadius: '10px' }}>
-                          <div className="settlement-payer-payee" style={{ fontSize: '0.85rem' }}>
+                          <div className="settlement-payer-payee" style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span style={{ color: 'var(--color-danger)' }}>{p.from}</span>
-                            <span className="settlement-arrow" style={{ fontSize: '1rem' }}>➔</span>
+                            <span className="settlement-arrow" style={{ display: 'flex', alignItems: 'center' }}><IconArrowRight style={{ marginLeft: 0 }} /></span>
                             <span style={{ color: 'var(--color-success)' }}>{p.to}</span>
                           </div>
                           <div className="settlement-amount" style={{ fontSize: '1rem' }}>₹{p.amount.toLocaleString()}</div>
@@ -1405,7 +1512,7 @@ export default function Home() {
                 <div className="card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '750', margin: 0 }}>Convert & Pay</h3>
-                    <button className="btn btn-secondary" style={{ padding: 0, minWidth: 'auto', border: 'none', background: 'transparent' }}>⚙️</button>
+                    <button className="btn btn-secondary" style={{ padding: 0, minWidth: 'auto', border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconSettings /></button>
                   </div>
                   
                   <form onSubmit={handleQuickSettleSubmit}>
@@ -1585,7 +1692,9 @@ export default function Home() {
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current.click()}
                 >
-                  <div className="dropzone-icon">📥</div>
+                  <div className="dropzone-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                    <IconImport style={{ width: '48px', height: '48px', color: 'var(--text-muted)', marginRight: 0 }} />
+                  </div>
                   <h3>Drag and drop your expenses export CSV here</h3>
                   <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                     Or click to browse files from your computer
@@ -1772,8 +1881,8 @@ export default function Home() {
                                       const colorClass = isHigh ? 'var(--color-danger)' : anom.severity === 'MEDIUM' ? 'var(--color-warning)' : 'var(--color-primary)';
                                       return (
                                         <div key={aIdx} style={{ fontSize: '0.85rem' }}>
-                                          <div style={{ fontWeight: '700', color: colorClass }}>
-                                            ⚠️ [{anom.severity}] {anom.type}: {anom.message}
+                                          <div style={{ fontWeight: '700', color: colorClass, display: 'flex', alignItems: 'center' }}>
+                                            <IconWarning style={{ marginRight: '0.25rem' }} /> [{anom.severity}] {anom.type}: {anom.message}
                                           </div>
                                           
                                           {/* Resolve options inline */}
@@ -1920,7 +2029,7 @@ export default function Home() {
             {importStep === 'success' && importReport && (
               <div>
                 <div style={{ textAlign: 'center', padding: '2rem', background: '#eefdf4', borderRadius: '12px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>✅</div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}><IconSuccess /></div>
                   <h3 style={{ color: 'var(--color-success)', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Import Succeeded!</h3>
                   <p>{importReport.message}</p>
                 </div>
@@ -1951,24 +2060,49 @@ export default function Home() {
                 Define active membership date ranges for flatmates to ensure expenses are split correctly over time.
               </p>
 
-              {groups.map(g => (
-                <div key={g.id} style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem', background: selectedGroupId === g.id ? '#f0fdf4' : 'transparent', borderColor: selectedGroupId === g.id ? '#bbf7d0' : 'var(--border-color)' }}>
-                  <h4 style={{ fontSize: '1.05rem', marginBottom: '0.5rem', fontWeight: '700' }}>{g.name}</h4>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{g.description}</p>
-                  
-                  <h5 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Members & Dates:</h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {g.members.map(m => (
-                      <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', background: '#ffffff', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.9rem', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontWeight: '600' }}>{m.name}</span>
-                        <span style={{ color: 'var(--color-primary)', fontWeight: '700' }}>
-                          {m.joined_at} to {m.left_at || 'Present'}
-                        </span>
-                      </div>
-                    ))}
+              {groups.map(g => {
+                const myMembership = g.members.find(m => m.user_id === loggedInUser?.id);
+                const isMember = !!myMembership;
+                const isCurrentlyActive = isMember && !myMembership.left_at;
+
+                return (
+                  <div key={g.id} style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem', background: selectedGroupId === g.id ? '#f0fdf4' : 'transparent', borderColor: selectedGroupId === g.id ? '#bbf7d0' : 'var(--border-color)' }}>
+                    <h4 style={{ fontSize: '1.05rem', marginBottom: '0.5rem', fontWeight: '700' }}>{g.name}</h4>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{g.description}</p>
+                    
+                    <h5 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Members & Dates:</h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {g.members.map(m => (
+                        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', background: '#ffffff', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.9rem', border: '1px solid var(--border-color)' }}>
+                          <span style={{ fontWeight: '600' }}>{m.name}</span>
+                          <span style={{ color: 'var(--color-primary)', fontWeight: '700' }}>
+                            {m.joined_at} to {m.left_at || 'Present'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Join / Leave controls */}
+                    <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+                      {!isMember && (
+                        <button className="btn btn-primary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px' }} onClick={() => handleToggleMembership(g, 'join')}>
+                          Join Group
+                        </button>
+                      )}
+                      {isMember && isCurrentlyActive && (
+                        <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={() => handleToggleMembership(g, 'leave')}>
+                          Leave Group
+                        </button>
+                      )}
+                      {isMember && !isCurrentlyActive && (
+                        <button className="btn btn-primary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px' }} onClick={() => handleToggleMembership(g, 'rejoin')}>
+                          Rejoin Group
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Create Group Form */}

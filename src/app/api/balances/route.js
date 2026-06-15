@@ -3,14 +3,13 @@ import { getDb } from '@/lib/db';
 
 // Greedy Debt Minimization Algorithm
 function minimizeDebts(balancesMap) {
-  // Convert map to array of { name, balance }
   const members = Object.keys(balancesMap).map(name => ({
     name,
     balance: Math.round(balancesMap[name] * 100) / 100
   }));
 
-  const debtors = members.filter(m => m.balance < -0.01).sort((a, b) => a.balance - b.balance); // most negative first
-  const creditors = members.filter(m => m.balance > 0.01).sort((a, b) => b.balance - a.balance); // most positive first
+  const debtors = members.filter(m => m.balance < -0.01).sort((a, b) => a.balance - b.balance);
+  const creditors = members.filter(m => m.balance > 0.01).sort((a, b) => b.balance - a.balance);
 
   const payments = [];
 
@@ -52,7 +51,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const groupIdStr = searchParams.get('groupId');
-    const auditUserName = searchParams.get('auditUser'); // name of user to audit, e.g. 'Rohan'
+    const auditUserName = searchParams.get('auditUser');
 
     if (!groupIdStr) {
       return NextResponse.json({ error: 'groupId is required' }, { status: 400 });
@@ -60,9 +59,10 @@ export async function GET(request) {
 
     const groupId = parseInt(groupIdStr, 10);
     const db = getDb();
+    await db.initPromise;
 
-    // 1. Get all group members (and active timeline)
-    const memberships = db.prepare(`
+    // 1. Get all group members
+    const memberships = await db.prepare(`
       SELECT u.id as user_id, u.name 
       FROM group_memberships m
       JOIN users u ON m.user_id = u.id
@@ -70,20 +70,18 @@ export async function GET(request) {
     `).all(groupId);
 
     if (memberships.length === 0) {
-      return NextResponse.json({ balances: {}, payments: [], ledger: [] });
+      return NextResponse.json({ balances: {}, payments: [], ledger: [], groupTransactions: [] });
     }
 
     const memberNames = memberships.map(m => m.name);
-    const memberIds = memberships.map(m => m.user_id);
 
-    // Initialize balances for all group members
     const balances = {};
     memberNames.forEach(name => {
       balances[name] = 0;
     });
 
     // 2. Fetch all expenses in the group
-    const expenses = db.prepare(`
+    const expenses = await db.prepare(`
       SELECT e.id, e.description, e.amount, e.currency, e.converted_amount_inr, 
              e.paid_by_user_id, u.name as paid_by_name, e.split_type, e.expense_date, e.notes
       FROM expenses e
@@ -97,7 +95,7 @@ export async function GET(request) {
     let splits = [];
     if (expenseIds.length > 0) {
       const placeholders = expenseIds.map(() => '?').join(',');
-      splits = db.prepare(`
+      splits = await db.prepare(`
         SELECT s.expense_id, s.user_id, u.name as user_name, s.calculated_amount_inr
         FROM expense_splits s
         JOIN users u ON s.user_id = u.id
@@ -118,12 +116,10 @@ export async function GET(request) {
     expenses.forEach(e => {
       const payerName = e.paid_by_name;
       
-      // Add total paid to payer balance (if they are a group member)
       if (balances[payerName] !== undefined) {
         balances[payerName] += e.converted_amount_inr;
       }
 
-      // Subtract split amounts from participants
       const expenseSplits = splitsByExpense[e.id] || [];
       expenseSplits.forEach(s => {
         if (balances[s.user_name] !== undefined) {
@@ -133,7 +129,7 @@ export async function GET(request) {
     });
 
     // 3. Fetch all settlements in the group
-    const settlements = db.prepare(`
+    const settlements = await db.prepare(`
       SELECT s.id, s.amount, s.currency, s.converted_amount_inr, 
              s.payer_id, u1.name as payer_name, 
              s.payee_id, u2.name as payee_name, 
@@ -164,7 +160,7 @@ export async function GET(request) {
     // 4. Generate audit ledger if a specific user is requested
     let ledger = [];
     if (auditUserName && balances[auditUserName] !== undefined) {
-      // Collect all expenses user participated in (either paid it or was in the split)
+      // Collect all expenses user participated in
       const userExpenses = expenses.filter(e => {
         const isPayer = e.paid_by_name === auditUserName;
         const inSplit = (splitsByExpense[e.id] || []).some(s => s.user_name === auditUserName);
@@ -237,10 +233,43 @@ export async function GET(request) {
       });
     }
 
+    // 5. Generate group-wide transactions list for the dashboard
+    const expenseTxns = expenses.map(e => ({
+      id: `expense-${e.id}`,
+      date: e.expense_date,
+      description: e.description,
+      type: 'expense',
+      totalAmount: e.converted_amount_inr,
+      currency: e.currency,
+      originalAmount: e.amount,
+      paidBy: e.paid_by_name,
+      notes: e.notes || ''
+    }));
+
+    const settlementTxns = settlements.map(s => ({
+      id: `settlement-${s.id}`,
+      date: s.settlement_date,
+      description: `Payment: ${s.payer_name} paid ${s.payee_name}`,
+      type: 'settlement',
+      totalAmount: s.converted_amount_inr,
+      currency: s.currency,
+      originalAmount: s.amount,
+      paidBy: s.payer_name,
+      notes: s.notes || ''
+    }));
+
+    const groupTransactions = [...expenseTxns, ...settlementTxns].sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+      return a.id.localeCompare(b.id);
+    });
+
     return NextResponse.json({
       balances,
       payments,
-      ledger
+      ledger,
+      groupTransactions
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

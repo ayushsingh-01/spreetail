@@ -20,6 +20,7 @@ export async function POST(request) {
     }
 
     const db = getDb();
+    await db.initPromise;
 
     const stmt = db.prepare(`
       INSERT INTO settlements (group_id, payer_id, payee_id, amount, currency, 
@@ -27,7 +28,7 @@ export async function POST(request) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const settlementId = stmt.run(
+    const res = await stmt.run(
       group_id,
       payer_id,
       payee_id,
@@ -36,7 +37,8 @@ export async function POST(request) {
       converted_amount_inr || amount,
       settlement_date,
       notes || ''
-    ).lastInsertRowid;
+    );
+    const settlementId = res.lastInsertRowid;
 
     return NextResponse.json({ success: true, settlementId });
   } catch (error) {

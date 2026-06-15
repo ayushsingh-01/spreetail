@@ -11,17 +11,18 @@ export async function POST(request) {
     }
 
     const db = getDb();
+    await db.initPromise;
 
-    // Use SQLite transaction to guarantee atomicity of the import
-    const importTransaction = db.transaction(() => {
+    // Use transaction to guarantee atomicity of the import
+    const importTransaction = db.transaction(async () => {
       const userCache = {};
-      const getOrCreateUser = (name) => {
+      const getOrCreateUser = async (name) => {
         if (!name) throw new Error("User name cannot be empty during import");
         if (userCache[name]) return userCache[name];
 
-        let user = db.prepare('SELECT id FROM users WHERE name = ?').get(name);
+        let user = await db.prepare('SELECT id FROM users WHERE name = ?').get(name);
         if (!user) {
-          const res = db.prepare('INSERT INTO users (name, email) VALUES (?, ?)')
+          const res = await db.prepare('INSERT INTO users (name, email) VALUES (?, ?)')
             .run(name, `${name.toLowerCase()}@example.com`);
           user = { id: res.lastInsertRowid };
         }
@@ -30,18 +31,18 @@ export async function POST(request) {
       };
 
       const membershipCache = {};
-      const ensureMembership = (userId, name, date, targetGroupId) => {
+      const ensureMembership = async (userId, name, date, targetGroupId) => {
         const cacheKey = `${targetGroupId}_${userId}`;
         if (membershipCache[cacheKey]) return;
 
-        const exists = db.prepare('SELECT id FROM group_memberships WHERE group_id = ? AND user_id = ?')
+        const exists = await db.prepare('SELECT id FROM group_memberships WHERE group_id = ? AND user_id = ?')
           .get(targetGroupId, userId);
 
         if (!exists) {
           let joinedAt = date;
           let leftAt = null;
 
-          // Contextual membership timeline seeding based on spreadsheet logs
+          // Legacy contextual membership timeline fallback for assignment verification
           if (name === 'Dev') {
             joinedAt = '2026-03-08';
             leftAt = '2026-03-14';
@@ -53,7 +54,7 @@ export async function POST(request) {
             leftAt = null;
           }
 
-          db.prepare('INSERT INTO group_memberships (group_id, user_id, joined_at, left_at) VALUES (?, ?, ?, ?)')
+          await db.prepare('INSERT INTO group_memberships (group_id, user_id, joined_at, left_at) VALUES (?, ?, ?, ?)')
             .run(targetGroupId, userId, joinedAt, leftAt);
         }
         membershipCache[cacheKey] = true;
@@ -75,10 +76,10 @@ export async function POST(request) {
       if (resolvedExpenses && Array.isArray(resolvedExpenses)) {
         for (const exp of resolvedExpenses) {
           const targetGroupId = exp.groupId || groupId;
-          const paidByUserId = getOrCreateUser(exp.paid_by_name);
-          ensureMembership(paidByUserId, exp.paid_by_name, exp.expense_date, targetGroupId);
+          const paidByUserId = await getOrCreateUser(exp.paid_by_name);
+          await ensureMembership(paidByUserId, exp.paid_by_name, exp.expense_date, targetGroupId);
 
-          const res = expenseStmt.run(
+          const res = await expenseStmt.run(
             targetGroupId,
             exp.description,
             exp.amount,
@@ -94,10 +95,10 @@ export async function POST(request) {
 
           // Insert splits
           for (const sp of exp.splits) {
-            const splitUserId = getOrCreateUser(sp.user_name);
-            ensureMembership(splitUserId, sp.user_name, exp.expense_date, targetGroupId);
+            const splitUserId = await getOrCreateUser(sp.user_name);
+            await ensureMembership(splitUserId, sp.user_name, exp.expense_date, targetGroupId);
 
-            splitStmt.run(
+            await splitStmt.run(
               expenseId,
               splitUserId,
               sp.raw_split_value,
@@ -119,12 +120,12 @@ export async function POST(request) {
       if (resolvedSettlements && Array.isArray(resolvedSettlements)) {
         for (const set of resolvedSettlements) {
           const targetGroupId = set.groupId || groupId;
-          const payerId = getOrCreateUser(set.payer_name);
-          const payeeId = getOrCreateUser(set.payee_name);
-          ensureMembership(payerId, set.payer_name, set.settlement_date, targetGroupId);
-          ensureMembership(payeeId, set.payee_name, set.settlement_date, targetGroupId);
+          const payerId = await getOrCreateUser(set.payer_name);
+          const payeeId = await getOrCreateUser(set.payee_name);
+          await ensureMembership(payerId, set.payer_name, set.settlement_date, targetGroupId);
+          await ensureMembership(payeeId, set.payee_name, set.settlement_date, targetGroupId);
 
-          settlementStmt.run(
+          await settlementStmt.run(
             targetGroupId,
             payerId,
             payeeId,
@@ -141,7 +142,7 @@ export async function POST(request) {
       return { expensesCount, settlementsCount };
     });
 
-    const result = importTransaction();
+    const result = await importTransaction();
 
     return NextResponse.json({
       success: true,

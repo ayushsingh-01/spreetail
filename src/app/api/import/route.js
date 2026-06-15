@@ -13,16 +13,22 @@ export async function POST(request) {
 
     const csvText = await file.text();
     
-    // Parse records and detect initial anomalies
-    const records = parseCSVData(csvText);
+    // Get all users, groups and memberships in the system to dynamically adapt the parser
+    const db = getDb();
+    await db.initPromise;
+    const dbUsers = await db.prepare('SELECT id, name FROM users').all();
+    const dbGroups = await db.prepare('SELECT id, name FROM groups').all();
+    const dbMemberships = await db.prepare(`
+      SELECT m.group_id, u.name as user_name, m.joined_at, m.left_at
+      FROM group_memberships m
+      JOIN users u ON m.user_id = u.id
+    `).all();
+
+    // Parse records and detect initial anomalies with dynamic system state
+    const records = parseCSVData(csvText, dbUsers, dbGroups, dbMemberships);
     
     // Find duplicates/conflicts
     const duplicates = detectDuplicates(records);
-
-    // Get all users and groups in the system to help with manual resolutions
-    const db = getDb();
-    const dbUsers = db.prepare('SELECT id, name FROM users').all();
-    const dbGroups = db.prepare('SELECT id, name FROM groups').all();
 
     return NextResponse.json({
       success: true,

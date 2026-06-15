@@ -4,13 +4,14 @@ import { getDb } from '@/lib/db';
 export async function GET() {
   try {
     const db = getDb();
+    await db.initPromise;
     
     // Fetch groups
-    const groups = db.prepare('SELECT * FROM groups').all();
+    const groups = await db.prepare('SELECT * FROM groups').all();
     
     // For each group, fetch members and their membership timeline
     for (const group of groups) {
-      const memberships = db.prepare(`
+      const memberships = await db.prepare(`
         SELECT m.id, m.joined_at, m.left_at, u.id as user_id, u.name, u.email
         FROM group_memberships m
         JOIN users u ON m.user_id = u.id
@@ -35,11 +36,13 @@ export async function POST(request) {
     }
     
     const db = getDb();
+    await db.initPromise;
     
     // Perform transaction
-    const createGroupTransaction = db.transaction(() => {
+    const createGroupTransaction = db.transaction(async () => {
       const groupStmt = db.prepare('INSERT INTO groups (name, description) VALUES (?, ?)');
-      const groupId = groupStmt.run(name, description || '').lastInsertRowid;
+      const res = await groupStmt.run(name, description || '');
+      const groupId = res.lastInsertRowid;
       
       if (members && Array.isArray(members)) {
         const memStmt = db.prepare(`
@@ -47,13 +50,13 @@ export async function POST(request) {
           VALUES (?, ?, ?, ?)
         `);
         for (const m of members) {
-          memStmt.run(groupId, m.user_id, m.joined_at, m.left_at || null);
+          await memStmt.run(groupId, m.user_id, m.joined_at, m.left_at || null);
         }
       }
       return groupId;
     });
     
-    const groupId = createGroupTransaction();
+    const groupId = await createGroupTransaction();
     
     return NextResponse.json({ success: true, groupId });
   } catch (error) {

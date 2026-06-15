@@ -22,8 +22,9 @@ export async function POST(request) {
     }
 
     const db = getDb();
+    await db.initPromise;
 
-    const addExpenseTransaction = db.transaction(() => {
+    const addExpenseTransaction = db.transaction(async () => {
       const expenseStmt = db.prepare(`
         INSERT INTO expenses (group_id, description, amount, currency, converted_amount_inr, 
                               paid_by_user_id, split_type, expense_date, notes)
@@ -35,7 +36,7 @@ export async function POST(request) {
         VALUES (?, ?, ?, ?)
       `);
 
-      const expenseId = expenseStmt.run(
+      const res = await expenseStmt.run(
         group_id,
         description,
         amount,
@@ -45,10 +46,11 @@ export async function POST(request) {
         split_type,
         expense_date,
         notes || ''
-      ).lastInsertRowid;
+      );
+      const expenseId = res.lastInsertRowid;
 
       for (const sp of splits) {
-        splitStmt.run(
+        await splitStmt.run(
           expenseId,
           sp.user_id,
           sp.raw_split_value,
@@ -59,7 +61,7 @@ export async function POST(request) {
       return expenseId;
     });
 
-    const expenseId = addExpenseTransaction();
+    const expenseId = await addExpenseTransaction();
 
     return NextResponse.json({ success: true, expenseId });
   } catch (error) {
