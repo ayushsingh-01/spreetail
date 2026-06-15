@@ -1149,7 +1149,8 @@ export default function Home() {
 
     expenseLedger.forEach(e => {
       const cat = getCategory(e.description);
-      const amt = e.totalAmount;
+      // Use myShare so each user sees their own personal spending slice
+      const amt = e.myShare || 0;
       if (cat === 'Food & Dining') sumFood += amt;
       else if (cat === 'Utilities') sumUtilities += amt;
       else if (cat === 'Travel') sumTravel += amt;
@@ -1419,13 +1420,13 @@ export default function Home() {
                         </div>
                       );
                     }
-                    const radius = 35;
+                    const radius = 52;
                     const circumference = 2 * Math.PI * radius;
                     let currentOffset = 0;
                     return (
                       <div className="doughnut-container">
                         <div className="doughnut-svg-wrapper">
-                          <svg width="100%" height="100%" viewBox="0 0 120 120">
+                          <svg width="100%" height="100%" viewBox="0 0 160 160">
                             {data.categories.map((c, idx) => {
                               const pct = c.value / data.total;
                               const dash = pct * circumference;
@@ -1434,21 +1435,21 @@ export default function Home() {
                               return (
                                 <circle 
                                   key={idx}
-                                  cx="60" 
-                                  cy="60" 
+                                  cx="80" 
+                                  cy="80" 
                                   r={radius} 
                                   fill="transparent" 
                                   stroke={c.color} 
-                                  strokeWidth="10" 
+                                  strokeWidth="12" 
                                   strokeDasharray={`${dash} ${circumference - dash}`} 
                                   strokeDashoffset={-offset} 
-                                  transform="rotate(-90 60 60)" 
+                                  transform="rotate(-90 80 80)" 
                                 />
                               );
                             })}
                           </svg>
                           <div className="doughnut-text-center">
-                            <div className="doughnut-text-label">Platform</div>
+                            <div className="doughnut-text-label">{loggedInUser?.name || 'My'}</div>
                             <div className="doughnut-text-val">₹{Math.round(data.total).toLocaleString()}</div>
                           </div>
                         </div>
